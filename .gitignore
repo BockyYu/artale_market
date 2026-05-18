@@ -1,0 +1,22 @@
+# Python
+.venv/
+venv/
+env/
+ENV/
+
+# Media
+image/
+images/
+text/
+
+# Go
+backend/tmp/
+backend/vendor/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Env
+.env
+.env.local

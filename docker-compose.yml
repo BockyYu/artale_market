@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: artale_market
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: "host=postgres user=postgres password=postgres dbname=artale_market port=5432 sslmode=disable"
+    volumes:
+      - ./backend:/app              # 掛載原始碼，Air 偵測變更自動重新編譯
+      - go_modules:/root/go/pkg/mod # 快取 Go 模組，加速重啟
+      - go_build:/root/.cache/go-build
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app             # 掛載原始碼，Vite HMR 即時更新
+      - /app/node_modules           # 防止 node_modules 被覆蓋
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  go_modules:
+  go_build:
