@@ -1,0 +1,10 @@
+easyocr
+pyautogui
+pygetwindow
+mss
+Pillow
+pyperclip
+opencv-python
+schedule
+requests
+numpy

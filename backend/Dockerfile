@@ -1,8 +1,7 @@
-FROM golang:1.21-alpine
+FROM golang:1.25-alpine
 
 WORKDIR /app
 
-# Install Air for hot reload
 RUN go install github.com/air-verse/air@latest
 
 EXPOSE 8080
