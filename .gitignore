@@ -20,3 +20,14 @@ frontend/dist/
 # Env
 .env
 .env.local
+
+# Claude Code
+.claude/
+
+# Python cache
+scraper/__pycache__/
+
+# Scraper artifacts
+scraper/*.png
+scraper/*.log
+
