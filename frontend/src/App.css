@@ -12,9 +12,9 @@ body {
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 28px 16px;
+  padding: 28px 24px;
 }
 
 /* ── Header ── */
@@ -99,7 +99,11 @@ body {
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
-  overflow: hidden;
+  overflow-x: auto;
+}
+
+table {
+  min-width: 700px;
 }
 
 table {
@@ -118,6 +122,7 @@ th {
   font-size: 0.83rem;
   font-weight: 600;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 td {
@@ -136,7 +141,7 @@ tr:hover td {
 
 .text-center { text-align: center; }
 .text-muted   { color: #999; }
-.text-bold    { font-weight: 600; }
+.text-bold    { font-weight: 600; white-space: nowrap; }
 
 .text-price {
   font-weight: 600;
@@ -145,12 +150,14 @@ tr:hover td {
 
 .change-up {
   font-weight: 600;
-  color: #2e7d32;
+  color: #c62828;
+  white-space: nowrap;
 }
 
 .change-down {
   font-weight: 600;
-  color: #c62828;
+  color: #2e7d32;
+  white-space: nowrap;
 }
 
 .empty {
@@ -169,6 +176,7 @@ tr:hover td {
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 10px;
+  white-space: nowrap;
 }
 
 .pct-tag {
@@ -499,7 +507,7 @@ tr:hover td {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 260px;
+  width: 220px;
   flex-shrink: 0;
   background: #fff;
   border-radius: 12px;
@@ -545,6 +553,7 @@ tr:hover td {
   background: #fafafa;
   color: #555;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 
 .pct-filter-btn:hover:not(.disabled) {

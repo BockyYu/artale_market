@@ -52,14 +52,22 @@ func (h *PriceHandler) GetSummary(c *gin.Context) {
 func (h *PriceHandler) RecordPrice(c *gin.Context) {
 	var input struct {
 		Price float64 `json:"price" binding:"required,gt=0"`
+		Date  string  `json:"date"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	if input.Date == "" {
+		input.Date = time.Now().Format("2006-01-02")
+	} else if _, err := time.Parse("2006-01-02", input.Date); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "date 格式錯誤，請使用 YYYY-MM-DD"})
+		return
+	}
+
 	itemID := parseID(c)
-	record, err := h.svc.Record(itemID, input.Price)
+	record, err := h.svc.Record(itemID, input.Price, input.Date)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
 		return

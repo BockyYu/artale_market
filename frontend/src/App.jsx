@@ -160,6 +160,22 @@ export default function App() {
         return a.today_price - b.today_price
       })
     }
+    if (sortBy === 'change_desc') {
+      return [...items].sort((a, b) => {
+        if (a.change_percent == null && b.change_percent == null) return 0
+        if (a.change_percent == null) return 1
+        if (b.change_percent == null) return -1
+        return b.change_percent - a.change_percent
+      })
+    }
+    if (sortBy === 'change_asc') {
+      return [...items].sort((a, b) => {
+        if (a.change_percent == null && b.change_percent == null) return 0
+        if (a.change_percent == null) return 1
+        if (b.change_percent == null) return -1
+        return a.change_percent - b.change_percent
+      })
+    }
     return items
   }
 
@@ -462,15 +478,24 @@ export default function App() {
                   {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
                 </span>
               </th>
-              <th>七天前</th>
-              <th>七日漲跌</th>
+              <th>昨日</th>
+              <th>三天前</th>
+              <th
+                className="sortable-th"
+                onClick={() => setSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
+              >
+                漲跌
+                <span className="sort-icon">
+                  {sortBy === 'change_desc' ? ' ▼' : sortBy === 'change_asc' ? ' ▲' : ' ⇅'}
+                </span>
+              </th>
               <th style={{ width: 140 }}>操作</th>
             </tr>
           </thead>
           <tbody>
             {filteredSummary.length === 0 ? (
               <tr>
-                <td colSpan={6} className="empty">
+                <td colSpan={7} className="empty">
                   {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
                 </td>
               </tr>
@@ -484,7 +509,8 @@ export default function App() {
                   <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
                     {fmt(item.today_price)}
                   </td>
-                  <td className="text-muted">{fmt(item.week_ago_price)}</td>
+                  <td className="text-muted">{fmt(item.yesterday_price)}</td>
+                  <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
                   <td>
                     <ChangeCell pct={item.change_percent} />
                   </td>
@@ -517,9 +543,9 @@ export default function App() {
             {error && <p className="error-msg">{error}</p>}
 
             <form onSubmit={handlePriceSubmit}>
-              {selectedItem?.week_ago_price != null && (
+              {selectedItem?.yesterday_price != null && (
                 <div className="price-hint">
-                  七天前：<strong>{selectedItem.week_ago_price.toLocaleString()} 楓幣</strong>
+                  昨日：<strong>{selectedItem.yesterday_price.toLocaleString()} 楓幣</strong>
                   {selectedItem.change_percent != null && (
                     <span className={selectedItem.change_percent >= 0 ? 'change-up' : 'change-down'}>
                       {' '}

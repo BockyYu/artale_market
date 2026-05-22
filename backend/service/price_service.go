@@ -10,7 +10,7 @@ import (
 
 type PriceService interface {
 	GetSummary(date string, pcts []int, categories []string) ([]model.PriceSummary, error)
-	Record(itemID uint, price float64) (*model.PriceRecord, error)
+	Record(itemID uint, price float64, date string) (*model.PriceRecord, error)
 	GetHistory(itemID uint) ([]model.PriceRecord, error)
 }
 
@@ -40,7 +40,8 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 		ref = time.Now()
 	}
 	today := ref.Format("2006-01-02")
-	weekAgo := ref.AddDate(0, 0, -7).Format("2006-01-02")
+	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
+	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
 
 	summaries := make([]model.PriceSummary, 0, len(items))
 	for _, item := range items {
@@ -58,13 +59,18 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 			s.TodayPrice = &p
 		}
 
-		if w, err := svc.priceRepo.FindByItemAndDate(item.ID, weekAgo); err == nil {
-			p := w.Price
-			s.WeekAgoPrice = &p
+		if r, err := svc.priceRepo.FindByItemAndDate(item.ID, yesterday); err == nil {
+			p := r.Price
+			s.YesterdayPrice = &p
 		}
 
-		if s.TodayPrice != nil && s.WeekAgoPrice != nil && *s.WeekAgoPrice != 0 {
-			pct := ((*s.TodayPrice - *s.WeekAgoPrice) / *s.WeekAgoPrice) * 100
+		if r, err := svc.priceRepo.FindByItemAndDate(item.ID, threeDaysAgo); err == nil {
+			p := r.Price
+			s.ThreeDaysAgoPrice = &p
+		}
+
+		if s.TodayPrice != nil && s.YesterdayPrice != nil && *s.YesterdayPrice != 0 {
+			pct := ((*s.TodayPrice - *s.YesterdayPrice) / *s.YesterdayPrice) * 100
 			pct = math.Round(pct*100) / 100
 			s.ChangePercent = &pct
 		}
@@ -75,19 +81,19 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 	return summaries, nil
 }
 
-func (svc *priceService) Record(itemID uint, price float64) (*model.PriceRecord, error) {
+func (svc *priceService) Record(itemID uint, price float64, date string) (*model.PriceRecord, error) {
 	if _, err := svc.itemRepo.FindByID(itemID); err != nil {
 		return nil, err
 	}
 
-	today := time.Now().Format("2006-01-02")
+	recordedDate, _ := time.Parse("2006-01-02", date)
 
-	existing, err := svc.priceRepo.FindByItemAndDate(itemID, today)
+	existing, err := svc.priceRepo.FindByItemAndDate(itemID, date)
 	if err != nil {
 		record := &model.PriceRecord{
 			ItemID:       itemID,
 			Price:        price,
-			RecordedDate: time.Now(),
+			RecordedDate: recordedDate,
 		}
 		if err := svc.priceRepo.Create(record); err != nil {
 			return nil, err

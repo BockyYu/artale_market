@@ -123,6 +123,23 @@ def click_sort_by_lowest(win) -> None:
     time.sleep(AFTER_SORT_DELAY)
 
 
+def _parse_price(text: str) -> int | None:
+    """將 OCR 讀到的價格文字轉成整數，支援「萬」單位（例如 3,099萬 → 30990000）。"""
+    text = text.strip()
+    if "萬" in text or "万" in text:
+        parts = re.split(r"[萬万]", text)
+        wan_str = re.sub(r"[^\d]", "", parts[0])
+        rem_str = re.sub(r"[^\d]", "", parts[1]) if len(parts) > 1 else ""
+        if not wan_str:
+            return None
+        value = int(wan_str) * 10000
+        if rem_str:
+            value += int(rem_str)
+        return value
+    cleaned = re.sub(r"[^\d]", "", text)
+    return int(cleaned) if len(cleaned) >= 3 else None
+
+
 def read_lowest_price(win) -> int | None:
     """
     讀取排序後第一行的「每個價錢」。
@@ -137,12 +154,9 @@ def read_lowest_price(win) -> int | None:
         # 跳過括號內的合計列（例如「(8萬 3,000)」）
         if "(" in text or "（" in text:
             continue
-        cleaned = re.sub(r"[^\d]", "", text)
-        if len(cleaned) >= 3:
-            try:
-                candidates.append((cy, int(cleaned)))
-            except ValueError:
-                pass
+        price = _parse_price(text)
+        if price is not None:
+            candidates.append((cy, price))
 
     if not candidates:
         logger.warning("  無法讀取任何價格數字")
