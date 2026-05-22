@@ -205,8 +205,8 @@ var scrollSeeds = []seedScroll{
 	// ── 套服 ──
 	{Name: "套服力量卷軸60%", Percentage: 60, Category: "套服", Description: "力量+2 物防+1", TrackPriority: 1},
 	{Name: "套服敏捷卷軸60%", Percentage: 60, Category: "套服", Description: "敏捷+2 命中+1", TrackPriority: 1},
-	{Name: "套服智力卷軸60%", Percentage: 60, Category: "套服", Description: "智力+2 魔防+1"},
-	{Name: "套服幸運卷軸60%", Percentage: 60, Category: "套服", Description: "幸運+2 命中+1"},
+	{Name: "套服智力卷軸60%", Percentage: 60, Category: "套服", Description: "智力+2 魔防+1", TrackPriority: 1},
+	{Name: "套服幸運卷軸60%", Percentage: 60, Category: "套服", Description: "幸運+2 命中+1", TrackPriority: 1},
 	{Name: "套服防禦力卷軸60%", Percentage: 60, Category: "套服", Description: "物防+2 魔防+1"},
 
 	// ── 鞋子 ──

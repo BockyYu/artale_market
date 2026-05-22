@@ -48,20 +48,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  frontend:
-    build:
-      context: ./frontend
-      provenance: false
-    ports:
-      - "5173:5173"
-    environment:
-      API_TARGET: "http://backend:8080"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - backend
-    restart: unless-stopped
 
 volumes:
   postgres_data:
