@@ -525,7 +525,7 @@ tr:hover td {
 .sidebar-title {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #888;
+  color: #444;
   text-align: center;
   padding-bottom: 6px;
   border-bottom: 1px solid #f0f0f5;
@@ -582,7 +582,7 @@ tr:hover td {
 .sidebar-group-label {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #aaa;
+  color: #666;
   text-align: center;
   padding: 4px 0 2px;
   letter-spacing: 0.05em;
@@ -636,6 +636,33 @@ tr:hover td {
 }
 .cat-clear-btn:hover {
   background: #ffcdd2;
+}
+
+.skillbook-toggle-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #9fa8da;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #f3f4fd;
+  color: #3f51b5;
+  text-align: center;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.skillbook-toggle-btn:hover {
+  background: #e8eaf6;
+  border-color: #5c6bc0;
+}
+
+.skillbook-toggle-btn.active {
+  background: #3f51b5;
+  color: #fff;
+  border-color: #3f51b5;
 }
 
 .pct-count {

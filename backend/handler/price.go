@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"strconv"
-	"strings"
 	"time"
 
 	"artale_market/service"
@@ -20,27 +18,20 @@ func NewPriceHandler(svc service.PriceService, querySvc service.QueryService) *P
 }
 
 func (h *PriceHandler) GetSummary(c *gin.Context) {
-	date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
-
-	var pcts []int
-	if pctStr := c.Query("percentage"); pctStr != "" {
-		for _, s := range strings.Split(pctStr, ",") {
-			if v, err := strconv.Atoi(strings.TrimSpace(s)); err == nil {
-				pcts = append(pcts, v)
-			}
-		}
+	var body struct {
+		Date       string   `json:"date"`
+		Percentage []int    `json:"percentage"`
+		Category   []string `json:"category"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	if body.Date == "" {
+		body.Date = time.Now().Format("2006-01-02")
 	}
 
-	var categories []string
-	if catStr := c.Query("category"); catStr != "" {
-		for _, s := range strings.Split(catStr, ",") {
-			if t := strings.TrimSpace(s); t != "" {
-				categories = append(categories, t)
-			}
-		}
-	}
-
-	summaries, err := h.svc.GetSummary(date, pcts, categories)
+	summaries, err := h.svc.GetSummary(body.Date, body.Percentage, body.Category)
 	if err != nil {
 		respInternal(c, err)
 		return

@@ -13,7 +13,7 @@ func registerMember(g *gin.RouterGroup, d *Deps) {
 	g.PATCH("/items/:id/track", d.Item.SetTracked)
 	g.DELETE("/items/:id", d.Item.Delete)
 
-	g.GET("/prices/summary", d.Price.GetSummary)
+	g.POST("/v1/search", d.Price.GetSummary)
 	g.POST("/items/:id/prices", d.Price.RecordPrice)
 	g.GET("/items/:id/prices", d.Price.GetHistory)
 

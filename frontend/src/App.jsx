@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import PotionTable from './PotionTable'
 
-const SUMMARY_API  = '/api/prices/summary'
+const SUMMARY_API  = '/api/v1/search'
 const FREQUENT_API = '/api/me/frequent-items'
 
 function getUserID() {
@@ -15,8 +15,43 @@ function getUserID() {
 
 const USER_ID = getUserID()
 
+const ALL_SKILLBOOK_JOB = '全部'
+
+const JOB_GROUPS = [
+  { label: '全職業', cols: 1, items: [
+    { label: '全職業', value: '全職業共通' },
+  ]},
+  { label: '劍士系', cols: 2, items: [
+    { label: '劍士',   value: '劍士' },
+    { label: '英雄',   value: '英雄' },
+    { label: '聖騎士', value: '聖騎士' },
+    { label: '黑騎士', value: '黑騎士' },
+  ]},
+  { label: '弓手系', cols: 3, items: [
+    { label: '弓手',   value: '弓手' },
+    { label: '箭神',   value: '箭神' },
+    { label: '神射手', value: '神射手' },
+  ]},
+  { label: '法師系', cols: 2, items: [
+    { label: '法師',   value: '法師' },
+    { label: '火毒',   value: '火毒' },
+    { label: '冰雷',   value: '冰雷' },
+    { label: '主教',   value: '主教' },
+  ]},
+  { label: '盜賊系', cols: 3, items: [
+    { label: '盜賊',   value: '盜賊' },
+    { label: '神偷',   value: '神偷' },
+    { label: '夜使者', value: '夜使者' },
+  ]},
+  { label: '海賊系', cols: 2, items: [
+    { label: '槍神',   value: '槍神' },
+    { label: '拳霸',   value: '拳霸' },
+  ]},
+]
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('market')
+  const [viewMode, setViewMode] = useState('scroll') // 'scroll' | 'skillbook'
   const [summary, setSummary] = useState([])
   const localToday = () => {
     const d = new Date()
@@ -35,13 +70,17 @@ export default function App() {
   const [allItems, setAllItems] = useState([])
   const [pinnedItems, setPinnedItems] = useState([])
 
+  const [selectedJob, setSelectedJob] = useState(ALL_SKILLBOOK_JOB)
+  const [skillBookItems, setSkillBookItems] = useState([])
+  const [skillBookSortBy, setSkillBookSortBy] = useState('price_desc')
+
   const fetchSummary = useCallback(async (date, pcts, categories) => {
     try {
-      const url = new URL(SUMMARY_API, window.location.origin)
-      url.searchParams.set('date', date)
-      if (pcts && pcts.length > 0) url.searchParams.set('percentage', pcts.join(','))
-      if (categories && categories.length > 0) url.searchParams.set('category', categories.join(','))
-      const res = await fetch(url.toString())
+      const res = await fetch(SUMMARY_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, percentage: pcts, category: categories }),
+      })
       setSummary(await res.json() || [])
     } catch {
       setSummary([])
@@ -57,23 +96,45 @@ export default function App() {
     }
   }, [])
 
-
   const fetchAllItems = useCallback(async (date) => {
     try {
-      const url = new URL(SUMMARY_API, window.location.origin)
-      url.searchParams.set('date', date)
-      const res = await fetch(url.toString())
+      const res = await fetch(SUMMARY_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date }),
+      })
       setAllItems(await res.json() || [])
     } catch {
       setAllItems([])
     }
   }, [])
 
+  const fetchSkillBooks = useCallback(async (job, date) => {
+    try {
+      const categories = job === ALL_SKILLBOOK_JOB
+        ? JOB_GROUPS.flatMap(g => g.items.map(i => i.value))
+        : [job]
+      const res = await fetch(SUMMARY_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, category: categories }),
+      })
+      setSkillBookItems(await res.json() || [])
+    } catch {
+      setSkillBookItems([])
+    }
+  }, [])
+
   useEffect(() => {
-    fetchSummary(filterDate, filterPct, filterCategories)
-    fetchAllItems(filterDate)
-    fetchFrequent()
-  }, [fetchSummary, fetchAllItems, fetchFrequent, filterDate, filterPct, filterCategories])
+    if (viewMode === 'scroll') {
+      fetchSummary(filterDate, filterPct, filterCategories)
+      fetchAllItems(filterDate)
+      fetchFrequent()
+    } else {
+      fetchSkillBooks(selectedJob, filterDate)
+    }
+  }, [fetchSummary, fetchAllItems, fetchFrequent, fetchSkillBooks,
+      filterDate, filterPct, filterCategories, viewMode, selectedJob])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -93,7 +154,6 @@ export default function App() {
     })
   }
 
-
   const suggestions = searchText.trim().length > 0
     ? [...new Set(
         allItems
@@ -102,8 +162,8 @@ export default function App() {
       )].slice(0, 8)
     : []
 
-  const sortItems = (items) => {
-    if (sortBy === 'price_desc') {
+  const sortItems = (items, by) => {
+    if (by === 'price_desc') {
       return [...items].sort((a, b) => {
         if (a.today_price == null && b.today_price == null) return 0
         if (a.today_price == null) return 1
@@ -111,7 +171,7 @@ export default function App() {
         return b.today_price - a.today_price
       })
     }
-    if (sortBy === 'price_asc') {
+    if (by === 'price_asc') {
       return [...items].sort((a, b) => {
         if (a.today_price == null && b.today_price == null) return 0
         if (a.today_price == null) return 1
@@ -119,7 +179,7 @@ export default function App() {
         return a.today_price - b.today_price
       })
     }
-    if (sortBy === 'change_desc') {
+    if (by === 'change_desc') {
       return [...items].sort((a, b) => {
         if (a.change_percent == null && b.change_percent == null) return 0
         if (a.change_percent == null) return 1
@@ -127,7 +187,7 @@ export default function App() {
         return b.change_percent - a.change_percent
       })
     }
-    if (sortBy === 'change_asc') {
+    if (by === 'change_asc') {
       return [...items].sort((a, b) => {
         if (a.change_percent == null && b.change_percent == null) return 0
         if (a.change_percent == null) return 1
@@ -141,8 +201,11 @@ export default function App() {
   const filteredSummary = sortItems(
     pinnedItems.length > 0
       ? pinnedItems.map(p => allItems.find(i => i.item_id === p.item_id) ?? p)
-      : summary
+      : summary,
+    sortBy
   )
+
+  const sortedSkillBooks = sortItems(skillBookItems, skillBookSortBy)
 
   const PCT_OPTIONS = [10, 30, 60, 100]
 
@@ -241,7 +304,7 @@ export default function App() {
 
       {activeTab === 'potion' && <PotionTable />}
 
-      {activeTab === 'market' && frequentItems.length > 0 && (
+      {activeTab === 'market' && viewMode === 'scroll' && frequentItems.length > 0 && (
         <div className="frequent-bar">
           <span className="frequent-label">常用</span>
           {frequentItems.map((fi) => (
@@ -260,228 +323,327 @@ export default function App() {
 
       {activeTab === 'market' && <div className="main-layout">
         <aside className="sidebar">
-          <div className="sidebar-title">成功率</div>
-          <div className="pct-grid">
-            <button
-              className={`pct-filter-btn ${filterPct.length === 0 ? 'active' : ''}`}
-              onClick={() => setFilterPct([])}
-            >
-              全部
-            </button>
-            {PCT_OPTIONS.map((pct) => (
-              <button
-                key={pct}
-                className={`pct-filter-btn ${filterPct.includes(pct) ? 'active' : ''}`}
-                onClick={() => setFilterPct(prev =>
-                  prev.includes(pct) ? prev.filter(p => p !== pct) : [...prev, pct]
-                )}
-              >
-                {pct}%
-              </button>
-            ))}
-          </div>
 
-          <div className="sidebar-divider" />
-
-          {filterCategories.length > 0 && (
-            <button
-              className="cat-clear-btn"
-              onClick={() => setFilterCategories([])}
-            >
-              清除分類 ×
-            </button>
-          )}
-
-          {CATEGORY_GROUPS.map((group) => (
-            <div key={group.label}>
-              <div className="sidebar-group-label">{group.label}</div>
-              <div className="cat-grid" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
-                {group.items.map(({ label, value }) => (
+          {viewMode === 'scroll' ? (
+            <>
+              <div className="sidebar-title">卷軸成功率</div>
+              <div className="pct-grid">
+                <button
+                  className={`pct-filter-btn ${filterPct.length === 0 ? 'active' : ''}`}
+                  onClick={() => setFilterPct([])}
+                >
+                  全部
+                </button>
+                {PCT_OPTIONS.map((pct) => (
                   <button
-                    key={value}
-                    className={`cat-filter-btn ${filterCategories.includes(value) ? 'active' : ''}`}
-                    onClick={() => setFilterCategories(prev =>
-                      prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
+                    key={pct}
+                    className={`pct-filter-btn ${filterPct.includes(pct) ? 'active' : ''}`}
+                    onClick={() => setFilterPct(prev =>
+                      prev.includes(pct) ? prev.filter(p => p !== pct) : [...prev, pct]
                     )}
                   >
-                    {label}
+                    {pct}%
                   </button>
                 ))}
               </div>
-            </div>
-          ))}
+
+              <div className="sidebar-divider" />
+
+              {filterCategories.length > 0 && (
+                <button
+                  className="cat-clear-btn"
+                  onClick={() => setFilterCategories([])}
+                >
+                  清除分類 ×
+                </button>
+              )}
+
+              {CATEGORY_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div className="sidebar-group-label">{group.label}</div>
+                  <div className="cat-grid" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
+                    {group.items.map(({ label, value }) => (
+                      <button
+                        key={value}
+                        className={`cat-filter-btn ${filterCategories.includes(value) ? 'active' : ''}`}
+                        onClick={() => setFilterCategories(prev =>
+                          prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="sidebar-title">職業</div>
+              <button
+                className={`cat-filter-btn ${selectedJob === ALL_SKILLBOOK_JOB ? 'active' : ''}`}
+                style={{ marginBottom: 4 }}
+                onClick={() => setSelectedJob(ALL_SKILLBOOK_JOB)}
+              >
+                全部
+              </button>
+              {JOB_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div className="sidebar-group-label">{group.label}</div>
+                  <div className="cat-grid" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
+                    {group.items.map(({ label, value }) => (
+                      <button
+                        key={value}
+                        className={`cat-filter-btn ${selectedJob === value ? 'active' : ''}`}
+                        onClick={() => setSelectedJob(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          <div className="sidebar-divider" />
+          <button
+            className={`skillbook-toggle-btn ${viewMode === 'skillbook' ? 'active' : ''}`}
+            onClick={() => setViewMode(v => v === 'scroll' ? 'skillbook' : 'scroll')}
+          >
+            {viewMode === 'scroll' ? '技能書' : '← 回卷軸'}
+          </button>
+
         </aside>
 
         <div className="main-content">
 
-      <div className="filter-bar">
-        <div className="search-wrapper" ref={searchRef}>
-          <input
-            className="search-input"
-            placeholder="搜尋商品名稱"
-            value={searchText}
-            onChange={(e) => {
-              setSearchText(e.target.value)
-              setShowSuggestions(true)
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const kw = searchText.trim().toLowerCase()
-                if (kw) {
-                  const matched = allItems.filter(item => {
-                    const keywords = kw.split(/\s+/)
-                    return keywords.every(k => `${item.item_name} ${item.category}`.toLowerCase().includes(k))
-                  })
-                  if (matched.length > 0) pinItems(matched)
-                  setSearchText('')
-                }
-                setShowSuggestions(false)
-              }
-            }}
-          />
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="search-suggestions">
-              {suggestions.map((name) => (
-                <li
-                  key={name}
-                  className="suggestion-item"
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    const item = allItems.find(i => i.item_name === name)
-                    if (item) pinItems([item])
-                    setSearchText('')
-                    setShowSuggestions(false)
+          <div className="filter-bar">
+            {viewMode === 'scroll' && (
+              <div className="search-wrapper" ref={searchRef}>
+                <input
+                  className="search-input"
+                  placeholder="搜尋商品名稱"
+                  value={searchText}
+                  onChange={(e) => {
+                    setSearchText(e.target.value)
+                    setShowSuggestions(true)
                   }}
-                >
-                  {name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="date-filter">
-          <div className="quick-dates">
-            {[7, 14, 30].map((n) => {
-              const d = daysAgo(n)
-              return (
-                <button
-                  key={n}
-                  className={`quick-date-btn ${filterDate === d ? 'active' : ''}`}
-                  onClick={() => setFilterDate(d)}
-                >
-                  {n} 天前
-                </button>
-              )
-            })}
-            <button
-              className={`quick-date-btn ${filterDate === localToday() ? 'active' : ''}`}
-              onClick={() => setFilterDate(localToday())}
-            >
-              今天
-            </button>
-          </div>
-          <input
-            type="date"
-            className="date-input"
-            value={filterDate}
-            max={new Date().toISOString().slice(0, 10)}
-            onChange={(e) => setFilterDate(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {pinnedItems.length > 0 && (
-        <div className="pinned-bar">
-          <button
-            className="pinned-clear-all"
-            onClick={() => setPinnedItems([])}
-          >
-            清除全部
-          </button>
-          {pinnedItems.map(pinned => {
-            const fresh = summary.find(i => i.item_id === pinned.item_id)
-                          ?? allItems.find(i => i.item_id === pinned.item_id)
-                          ?? pinned
-            return (
-              <div key={pinned.item_id} className="pinned-chip">
-                <span className="pinned-chip-name">
-                  {pinned.item_name}
-                  {fresh.today_price != null && (
-                    <span className="pinned-price">{fresh.today_price.toLocaleString()}</span>
-                  )}
-                </span>
-                <button
-                  className="pinned-chip-remove"
-                  onClick={() => setPinnedItems(prev => prev.filter(p => p.item_id !== pinned.item_id))}
-                >×</button>
+                  onFocus={() => setShowSuggestions(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const kw = searchText.trim().toLowerCase()
+                      if (kw) {
+                        const matched = allItems.filter(item => {
+                          const keywords = kw.split(/\s+/)
+                          return keywords.every(k => `${item.item_name} ${item.category}`.toLowerCase().includes(k))
+                        })
+                        if (matched.length > 0) pinItems(matched)
+                        setSearchText('')
+                      }
+                      setShowSuggestions(false)
+                    }
+                  }}
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="search-suggestions">
+                    {suggestions.map((name) => (
+                      <li
+                        key={name}
+                        className="suggestion-item"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          const item = allItems.find(i => i.item_name === name)
+                          if (item) pinItems([item])
+                          setSearchText('')
+                          setShowSuggestions(false)
+                        }}
+                      >
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            )
-          })}
-        </div>
-      )}
-
-      <div className="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>商品名稱</th>
-              <th>類型</th>
-              <th
-                className="sortable-th"
-                onClick={() => setSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
-              >
-                今日價格
-                <span className="sort-icon">
-                  {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
-                </span>
-              </th>
-              <th>昨日</th>
-              <th>三天前</th>
-              <th
-                className="sortable-th"
-                onClick={() => setSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
-              >
-                漲跌
-                <span className="sort-icon">
-                  {sortBy === 'change_desc' ? ' ▼' : sortBy === 'change_asc' ? ' ▲' : ' ⇅'}
-                </span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSummary.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="empty">
-                  {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
-                </td>
-              </tr>
-            ) : (
-              filteredSummary.map((item) => (
-                <tr key={item.item_id}>
-                  <td className="text-bold">{item.item_name}</td>
-                  <td>
-                    <span className="category-tag">{item.category}</span>
-                  </td>
-                  <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
-                    {fmt(item.today_price)}
-                    {(item.today_updated_at || item.today_created_at) && (
-                      <div className="price-updated-at">
-                        {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-muted">{fmt(item.yesterday_price)}</td>
-                  <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
-                  <td>
-                    <ChangeCell pct={item.change_percent} />
-                  </td>
-                </tr>
-              ))
             )}
-          </tbody>
-        </table>
-      </div>
+            <div className="date-filter">
+              <div className="quick-dates">
+                {[7, 14, 30].map((n) => {
+                  const d = daysAgo(n)
+                  return (
+                    <button
+                      key={n}
+                      className={`quick-date-btn ${filterDate === d ? 'active' : ''}`}
+                      onClick={() => setFilterDate(d)}
+                    >
+                      {n} 天前
+                    </button>
+                  )
+                })}
+                <button
+                  className={`quick-date-btn ${filterDate === localToday() ? 'active' : ''}`}
+                  onClick={() => setFilterDate(localToday())}
+                >
+                  今天
+                </button>
+              </div>
+              <input
+                type="date"
+                className="date-input"
+                value={filterDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {viewMode === 'scroll' && pinnedItems.length > 0 && (
+            <div className="pinned-bar">
+              <button
+                className="pinned-clear-all"
+                onClick={() => setPinnedItems([])}
+              >
+                清除全部
+              </button>
+              {pinnedItems.map(pinned => {
+                const fresh = summary.find(i => i.item_id === pinned.item_id)
+                              ?? allItems.find(i => i.item_id === pinned.item_id)
+                              ?? pinned
+                return (
+                  <div key={pinned.item_id} className="pinned-chip">
+                    <span className="pinned-chip-name">
+                      {pinned.item_name}
+                      {fresh.today_price != null && (
+                        <span className="pinned-price">{fresh.today_price.toLocaleString()}</span>
+                      )}
+                    </span>
+                    <button
+                      className="pinned-chip-remove"
+                      onClick={() => setPinnedItems(prev => prev.filter(p => p.item_id !== pinned.item_id))}
+                    >×</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {viewMode === 'scroll' ? (
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品名稱</th>
+                    <th>類型</th>
+                    <th
+                      className="sortable-th"
+                      onClick={() => setSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
+                    >
+                      今日價格
+                      <span className="sort-icon">
+                        {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
+                      </span>
+                    </th>
+                    <th>昨日</th>
+                    <th>三天前</th>
+                    <th
+                      className="sortable-th"
+                      onClick={() => setSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
+                    >
+                      漲跌
+                      <span className="sort-icon">
+                        {sortBy === 'change_desc' ? ' ▼' : sortBy === 'change_asc' ? ' ▲' : ' ⇅'}
+                      </span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSummary.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="empty">
+                        {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSummary.map((item) => (
+                      <tr key={item.item_id}>
+                        <td className="text-bold">{item.item_name}</td>
+                        <td>
+                          <span className="category-tag">{item.category}</span>
+                        </td>
+                        <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
+                          {fmt(item.today_price)}
+                          {(item.today_updated_at || item.today_created_at) && (
+                            <div className="price-updated-at">
+                              {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          )}
+                        </td>
+                        <td className="text-muted">{fmt(item.yesterday_price)}</td>
+                        <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
+                        <td><ChangeCell pct={item.change_percent} /></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>技能書名稱</th>
+                    <th>職業</th>
+                    <th
+                      className="sortable-th"
+                      onClick={() => setSkillBookSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
+                    >
+                      今日價格
+                      <span className="sort-icon">
+                        {skillBookSortBy === 'price_desc' ? ' ▼' : skillBookSortBy === 'price_asc' ? ' ▲' : ' ⇅'}
+                      </span>
+                    </th>
+                    <th>昨日</th>
+                    <th>三天前</th>
+                    <th
+                      className="sortable-th"
+                      onClick={() => setSkillBookSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
+                    >
+                      漲跌
+                      <span className="sort-icon">
+                        {skillBookSortBy === 'change_desc' ? ' ▼' : skillBookSortBy === 'change_asc' ? ' ▲' : ' ⇅'}
+                      </span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedSkillBooks.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="empty">尚無資料</td>
+                    </tr>
+                  ) : (
+                    sortedSkillBooks.map((item) => (
+                      <tr key={item.item_id}>
+                        <td className="text-bold">{item.item_name}</td>
+                        <td><span className="category-tag">{item.category}</span></td>
+                        <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
+                          {fmt(item.today_price)}
+                          {(item.today_updated_at || item.today_created_at) && (
+                            <div className="price-updated-at">
+                              {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          )}
+                        </td>
+                        <td className="text-muted">{fmt(item.yesterday_price)}</td>
+                        <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
+                        <td><ChangeCell pct={item.change_percent} /></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
         </div>{/* main-content */}
       </div>}{/* activeTab === 'market' */}
