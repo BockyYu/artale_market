@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"time"
 
 	"artale_market/model"
@@ -21,23 +20,23 @@ func NewItemHandler(svc service.ItemService) *ItemHandler {
 func (h *ItemHandler) GetAll(c *gin.Context) {
 	items, err := h.svc.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respInternal(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respOK(c, items)
 }
 
 func (h *ItemHandler) Create(c *gin.Context) {
 	var item model.Item
 	if err := c.ShouldBindJSON(&item); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respBadRequest(c, err)
 		return
 	}
 	if err := h.svc.Create(&item); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respInternal(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respCreated(c, item)
 }
 
 func (h *ItemHandler) Update(c *gin.Context) {
@@ -48,47 +47,47 @@ func (h *ItemHandler) Update(c *gin.Context) {
 		Description string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respBadRequest(c, err)
 		return
 	}
 	item, err := h.svc.Update(parseID(c), input.Name, input.Percentage, input.Category, input.Description)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		respNotFound(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respOK(c, item)
 }
 
 func (h *ItemHandler) Delete(c *gin.Context) {
 	if err := h.svc.Delete(parseID(c)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		respNotFound(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "item deleted"})
+	respDeleted(c)
 }
 
 func (h *ItemHandler) GetTracked(c *gin.Context) {
 	today := time.Now().Format("2006-01-02")
 	items, err := h.svc.GetTracked(today)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respInternal(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respOK(c, items)
 }
 
 func (h *ItemHandler) SetTracked(c *gin.Context) {
 	var input struct {
-		TrackPriority int `json:"track_priority" binding:"min=0,max=9"`
+		TrackPriority model.TrackPriority `json:"track_priority" binding:"min=0,max=2"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respBadRequest(c, err)
 		return
 	}
 	item, err := h.svc.SetTracked(parseID(c), input.TrackPriority)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		respNotFound(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respOK(c, item)
 }

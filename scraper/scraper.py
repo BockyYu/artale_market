@@ -29,20 +29,12 @@ logger = logging.getLogger(__name__)
 # OCR 引擎懶初始化
 _reader: easyocr.Reader | None = None
 
-# ── 固定座標（根據 debug-ocr 校準）────────────────────────────────────────────
-# 搜尋輸入框中心
+# 搜尋輸入框中心（固定座標，相對於視窗左上角）
 _SEARCH_BOX_X = 403
 _SEARCH_BOX_Y = 77
 
-# 「每個價錢」欄位標題（點擊後按單價排序）
-_PRICE_HEADER_X = 1195
-_PRICE_HEADER_Y = 243
-
-# 「每個價錢」欄位的 x 範圍 & 資料列起始 y（用於 OCR 裁切）
-_PRICE_COL_X_MIN = 1095
-_PRICE_COL_X_MAX = 1295
-_PRICE_ROW_Y_MIN = 260   # 標題列以下才是資料
-# ─────────────────────────────────────────────────────────────────────────────
+# 「每個價錢」欄位快取：(center_x, center_y, col_x_min, col_x_max, row_y_min)
+_price_header_cache: tuple[int, int, int, int, int] | None = None
 
 
 def _get_reader() -> easyocr.Reader:
@@ -72,14 +64,14 @@ def get_game_window():
     return win
 
 
-def _capture_column(win) -> np.ndarray:
+def _capture_column(win, x_min: int, x_max: int, y_min: int) -> np.ndarray:
     """只截取「每個價錢」欄位的資料區域，供 OCR 使用。"""
     with mss.MSS() as sct:
         region = {
-            "left": max(0, win.left + _PRICE_COL_X_MIN),
-            "top": max(0, win.top + _PRICE_ROW_Y_MIN),
-            "width": _PRICE_COL_X_MAX - _PRICE_COL_X_MIN,
-            "height": win.height - _PRICE_ROW_Y_MIN,
+            "left": max(0, win.left + x_min),
+            "top": max(0, win.top + y_min),
+            "width": x_max - x_min,
+            "height": win.height - y_min,
         }
         shot = sct.grab(region)
     return np.array(Image.frombytes("RGB", shot.size, shot.rgb))
@@ -116,11 +108,66 @@ def search_item(win, item_name: str) -> None:
     time.sleep(AFTER_SEARCH_DELAY)
 
 
-def click_sort_by_lowest(win) -> None:
-    """點擊「每個價錢」欄位標題，按單價由低到高排序（固定座標，不需 OCR）。"""
-    pyautogui.click(win.left + _PRICE_HEADER_X, win.top + _PRICE_HEADER_Y)
-    logger.debug("  已點擊每個價錢排序")
+def _find_price_header(win) -> tuple[int, int, int, int, int]:
+    """
+    OCR 自動偵測「每個價錢」欄位標題位置。
+    回傳 (center_x, center_y, col_x_min, col_x_max, row_y_min)，座標相對於視窗左上角。
+    結果會快取，視窗移動後重啟腳本即可重新偵測。
+    """
+    global _price_header_cache
+    if _price_header_cache is not None:
+        return _price_header_cache
+
+    logger.info("  自動偵測「每個價錢」欄位位置...")
+    img, _, _ = _capture_full(win)
+    results = _get_reader().readtext(img)
+
+    # 單一文字塊命中
+    for bbox, text, _ in results:
+        if "每個價錢" in text.replace(" ", ""):
+            x1, x2 = int(bbox[0][0]), int(bbox[2][0])
+            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            cx = (x1 + x2) // 2
+            pad = max(60, (x2 - x1) // 2)
+            _price_header_cache = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
+            logger.info(f"  偵測成功（單塊）：center=({cx},{cy})")
+            return _price_header_cache
+
+    # 合併同列文字塊後再找
+    row_map: dict[int, list] = {}
+    for bbox, text, _ in results:
+        cy = int((bbox[0][1] + bbox[2][1]) / 2)
+        cx = int((bbox[0][0] + bbox[2][0]) / 2)
+        row_map.setdefault(round(cy / 15) * 15, []).append(
+            (cx, cy, text.replace(" ", ""), int(bbox[0][0]), int(bbox[2][0]))
+        )
+
+    for frags in sorted(row_map.values(), key=lambda f: f[0][1]):
+        frags.sort(key=lambda f: f[0])
+        merged = "".join(f[2] for f in frags)
+        if "每個價錢" in merged or ("每個" in merged and "價錢" in merged):
+            relevant = [f for f in frags if any(k in f[2] for k in ["每個", "價錢"])] or frags
+            cx = sum(f[0] for f in relevant) // len(relevant)
+            cy = sum(f[1] for f in relevant) // len(relevant)
+            x1 = min(f[3] for f in relevant)
+            x2 = max(f[4] for f in relevant)
+            pad = max(60, (x2 - x1) // 2)
+            _price_header_cache = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
+            logger.info(f"  偵測成功（合併）：center=({cx},{cy})")
+            return _price_header_cache
+
+    logger.warning("  無法偵測「每個價錢」位置，使用預設座標")
+    _price_header_cache = (1195, 243, 1095, 1295, 260)
+    return _price_header_cache
+
+
+def click_sort_by_lowest(win) -> tuple[int, int, int]:
+    """點擊「每個價錢」欄位標題排序，回傳 (col_x_min, col_x_max, row_y_min)。"""
+    cx, cy, x_min, x_max, y_min = _find_price_header(win)
+    pyautogui.click(win.left + cx, win.top + cy)
+    logger.debug(f"  已點擊每個價錢排序 ({cx}, {cy})")
     time.sleep(AFTER_SORT_DELAY)
+    return x_min, x_max, y_min
 
 
 def _parse_price(text: str) -> int | None:
@@ -140,21 +187,32 @@ def _parse_price(text: str) -> int | None:
     return int(cleaned) if len(cleaned) >= 3 else None
 
 
-def read_lowest_price(win) -> int | None:
+def read_lowest_price(win, x_min: int, x_max: int, y_min: int) -> int | None:
     """
     讀取排序後第一行的「每個價錢」。
     只對欄位資料區做 OCR（小圖），取 y 最小的有效數字。
     """
-    img = _capture_column(win)
+    img = _capture_column(win, x_min, x_max, y_min)
     results = _get_reader().readtext(img)
 
-    candidates: list[tuple[int, int]] = []
-    for bbox, text, conf in results:
+    # 把同一列的 OCR 碎片先合併（OCR 有時把「3099萬」切成「3099」+「萬」兩塊）
+    row_map: dict[int, list[tuple[int, int, str]]] = {}
+    for bbox, text, _conf in results:
         cy = int((bbox[0][1] + bbox[2][1]) / 2)
+        cx = int((bbox[0][0] + bbox[2][0]) / 2)
+        row_key = round(cy / 12) * 12  # 以 12px 為單位分列
+        row_map.setdefault(row_key, []).append((cx, cy, text))
+
+    candidates: list[tuple[int, int]] = []
+    for row_key in sorted(row_map.keys()):
+        fragments = sorted(row_map[row_key], key=lambda f: f[0])
+        cy = int(sum(f[1] for f in fragments) / len(fragments))
+        merged = "".join(f[2] for f in fragments)
+        logger.debug(f"  OCR 列 y≈{cy}: {merged!r}")
         # 跳過括號內的合計列（例如「(8萬 3,000)」）
-        if "(" in text or "（" in text:
+        if "(" in merged or "（" in merged:
             continue
-        price = _parse_price(text)
+        price = _parse_price(merged)
         if price is not None:
             candidates.append((cy, price))
 
@@ -175,5 +233,5 @@ def read_lowest_price(win) -> int | None:
 def scrape_item(win, item_name: str) -> int | None:
     """搜尋單一商品並回傳最低單價。"""
     search_item(win, item_name)
-    click_sort_by_lowest(win)
-    return read_lowest_price(win)
+    x_min, x_max, y_min = click_sort_by_lowest(win)
+    return read_lowest_price(win, x_min, x_max, y_min)

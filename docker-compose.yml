@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -37,6 +37,7 @@ services:
       DATABASE_URL: "host=postgres user=postgres password=postgres dbname=artale_market port=5432 sslmode=disable"
       REDIS_URL: "redis:6379"
       TZ: "Asia/Taipei"
+      JWT_SECRET: "change_this_to_a_strong_random_secret"
     volumes:
       - ./backend:/app
       - go_modules:/root/go/pkg/mod

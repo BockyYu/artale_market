@@ -11,7 +11,7 @@ type ItemService interface {
 	GetTracked(date string) ([]model.Item, error)
 	Create(item *model.Item) error
 	Update(id uint, name string, percentage int, category, description string) (*model.Item, error)
-	SetTracked(id uint, priority int) (*model.Item, error)
+	SetTracked(id uint, priority model.TrackPriority) (*model.Item, error)
 	Delete(id uint) error
 }
 
@@ -57,7 +57,7 @@ func (s *itemService) GetTracked(date string) ([]model.Item, error) {
 	return s.itemRepo.FindTracked(date)
 }
 
-func (s *itemService) SetTracked(id uint, priority int) (*model.Item, error) {
+func (s *itemService) SetTracked(id uint, priority model.TrackPriority) (*model.Item, error) {
 	item, err := s.itemRepo.FindByID(id)
 	if err != nil {
 		return nil, err

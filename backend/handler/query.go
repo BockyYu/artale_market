@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"net/http"
+	"errors"
 
 	"artale_market/service"
 
@@ -19,13 +19,13 @@ func NewQueryHandler(svc service.QueryService) *QueryHandler {
 func (h *QueryHandler) GetFrequent(c *gin.Context) {
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing X-User-ID header"})
+		respBadRequest(c, errors.New("missing X-User-ID header"))
 		return
 	}
 	items, err := h.svc.GetFrequent(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respInternal(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	respOK(c, items)
 }

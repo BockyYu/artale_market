@@ -54,7 +54,7 @@ func (r *itemRepo) FindTracked(date string) ([]model.Item, error) {
 	var items []model.Item
 	err := r.db.
 		Joins("LEFT JOIN price_records ON price_records.item_id = items.id AND price_records.recorded_date = ?", date).
-		Where("items.track_priority > 0 AND price_records.id IS NULL").
+		Where("items.track_priority > 0 AND items.track_priority < ? AND price_records.id IS NULL", model.TrackPriorityNotSeen).
 		Order("items.track_priority asc, items.name asc").
 		Find(&items).Error
 	return items, err
