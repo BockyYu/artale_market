@@ -18,11 +18,6 @@ const USER_ID = getUserID()
 export default function App() {
   const [activeTab, setActiveTab] = useState('market')
   const [summary, setSummary] = useState([])
-  const [modal, setModal] = useState(null)
-  const [priceInput, setPriceInput] = useState('')
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
   const localToday = () => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -62,6 +57,7 @@ export default function App() {
     }
   }, [])
 
+
   const fetchAllItems = useCallback(async (date) => {
     try {
       const url = new URL(SUMMARY_API, window.location.origin)
@@ -97,43 +93,6 @@ export default function App() {
     })
   }
 
-  const closeModal = () => {
-    setModal(null)
-    setSelectedItem(null)
-    setError('')
-  }
-
-  const openRecordPrice = (item) => {
-    setSelectedItem(item)
-    setPriceInput(item.today_price != null ? String(item.today_price) : '')
-    setError('')
-    setModal('recordPrice')
-  }
-
-  const handlePriceSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch(`/api/items/${selectedItem.item_id}/prices`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-ID': USER_ID },
-        body: JSON.stringify({ price: parseFloat(priceInput) }),
-      })
-      if (!res.ok) {
-        setError((await res.json()).error || '記錄失敗')
-        return
-      }
-      await fetchSummary(filterDate, filterPct, filterCategories)
-      fetchAllItems(filterDate)
-      fetchFrequent()
-      closeModal()
-    } catch {
-      setError('無法連接到伺服器')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const suggestions = searchText.trim().length > 0
     ? [...new Set(
@@ -285,21 +244,17 @@ export default function App() {
       {activeTab === 'market' && frequentItems.length > 0 && (
         <div className="frequent-bar">
           <span className="frequent-label">常用</span>
-          {frequentItems.map((fi) => {
-            const matched = summary.find((s) => s.item_id === fi.item_id)
-            return (
-              <button
-                key={fi.item_id}
-                className="frequent-chip"
-                onClick={() => matched && openRecordPrice(matched)}
-                title={`已查詢 ${fi.count} 次`}
-              >
-                {fi.name}
-                <span className="frequent-pct">{fi.percentage}%</span>
-                <span className="frequent-count">{fi.count}次</span>
-              </button>
-            )
-          })}
+          {frequentItems.map((fi) => (
+            <span
+              key={fi.item_id}
+              className="frequent-chip"
+              title={`已查詢 ${fi.count} 次`}
+            >
+              {fi.name}
+              <span className="frequent-pct">{fi.percentage}%</span>
+              <span className="frequent-count">{fi.count}次</span>
+            </span>
+          ))}
         </div>
       )}
 
@@ -363,7 +318,7 @@ export default function App() {
         <div className="search-wrapper" ref={searchRef}>
           <input
             className="search-input"
-            placeholder="搜尋商品名稱或類型，可用空格分隔多個關鍵字"
+            placeholder="搜尋商品名稱"
             value={searchText}
             onChange={(e) => {
               setSearchText(e.target.value)
@@ -438,21 +393,24 @@ export default function App() {
 
       {pinnedItems.length > 0 && (
         <div className="pinned-bar">
+          <button
+            className="pinned-clear-all"
+            onClick={() => setPinnedItems([])}
+          >
+            清除全部
+          </button>
           {pinnedItems.map(pinned => {
             const fresh = summary.find(i => i.item_id === pinned.item_id)
                           ?? allItems.find(i => i.item_id === pinned.item_id)
                           ?? pinned
             return (
               <div key={pinned.item_id} className="pinned-chip">
-                <button
-                  className="pinned-chip-name"
-                  onClick={() => openRecordPrice(fresh)}
-                >
+                <span className="pinned-chip-name">
                   {pinned.item_name}
                   {fresh.today_price != null && (
                     <span className="pinned-price">{fresh.today_price.toLocaleString()}</span>
                   )}
-                </button>
+                </span>
                 <button
                   className="pinned-chip-remove"
                   onClick={() => setPinnedItems(prev => prev.filter(p => p.item_id !== pinned.item_id))}
@@ -489,13 +447,12 @@ export default function App() {
                   {sortBy === 'change_desc' ? ' ▼' : sortBy === 'change_asc' ? ' ▲' : ' ⇅'}
                 </span>
               </th>
-              <th style={{ width: 140 }}>操作</th>
             </tr>
           </thead>
           <tbody>
             {filteredSummary.length === 0 ? (
               <tr>
-                <td colSpan={7} className="empty">
+                <td colSpan={6} className="empty">
                   {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
                 </td>
               </tr>
@@ -508,19 +465,16 @@ export default function App() {
                   </td>
                   <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
                     {fmt(item.today_price)}
+                    {(item.today_updated_at || item.today_created_at) && (
+                      <div className="price-updated-at">
+                        {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    )}
                   </td>
                   <td className="text-muted">{fmt(item.yesterday_price)}</td>
                   <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
                   <td>
                     <ChangeCell pct={item.change_percent} />
-                  </td>
-                  <td>
-                    <button
-                      className="btn btn-record"
-                      onClick={() => openRecordPrice(item)}
-                    >
-                      {item.today_price != null ? '更新今日價' : '記錄今日價'}
-                    </button>
                   </td>
                 </tr>
               ))
@@ -532,54 +486,6 @@ export default function App() {
         </div>{/* main-content */}
       </div>}{/* activeTab === 'market' */}
 
-      {modal && (
-        <div className="overlay" onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{`📝 ${selectedItem?.item_name}`}</h2>
-              <button className="close-btn" onClick={closeModal}>✕</button>
-            </div>
-
-            {error && <p className="error-msg">{error}</p>}
-
-            <form onSubmit={handlePriceSubmit}>
-              {selectedItem?.yesterday_price != null && (
-                <div className="price-hint">
-                  昨日：<strong>{selectedItem.yesterday_price.toLocaleString()} 楓幣</strong>
-                  {selectedItem.change_percent != null && (
-                    <span className={selectedItem.change_percent >= 0 ? 'change-up' : 'change-down'}>
-                      {' '}
-                      {selectedItem.change_percent >= 0 ? '▲' : '▼'}{' '}
-                      {Math.abs(selectedItem.change_percent).toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-              )}
-              <div className="form-group">
-                <label>今日市場價格（楓幣）*</label>
-                <input
-                  type="number"
-                  value={priceInput}
-                  onChange={(e) => setPriceInput(e.target.value)}
-                  placeholder="輸入今日觀察到的市場價格"
-                  min="1"
-                  step="1"
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="form-actions">
-                <button type="button" className="btn" onClick={closeModal} disabled={loading}>
-                  取消
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? '記錄中...' : '確認記錄'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

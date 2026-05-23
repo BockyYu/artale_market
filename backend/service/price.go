@@ -57,6 +57,10 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 		if r, err := svc.priceRepo.FindByItemAndDate(item.ID, today); err == nil {
 			p := r.Price
 			s.TodayPrice = &p
+			s.TodayCreatedAt = &r.CreatedAt
+			if !r.UpdatedAt.IsZero() {
+				s.TodayUpdatedAt = &r.UpdatedAt
+			}
 		}
 
 		if r, err := svc.priceRepo.FindByItemAndDate(item.ID, yesterday); err == nil {

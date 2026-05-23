@@ -688,6 +688,13 @@ tr:hover td {
   color: #e65100;
 }
 
+.price-updated-at {
+  font-size: 0.72rem;
+  color: #9e9e9e;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
 .pinned-chip-remove {
   padding: 5px 9px 5px 4px;
   background: none;
@@ -700,6 +707,25 @@ tr:hover td {
   transition: color 0.1s;
 }
 .pinned-chip-remove:hover { color: #c62828; }
+
+.pinned-clear-all {
+  padding: 5px 12px;
+  background: none;
+  border: 1px solid #bdbdbd;
+  border-radius: 14px;
+  color: #757575;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  white-space: nowrap;
+  align-self: center;
+}
+.pinned-clear-all:hover {
+  background: #ffebee;
+  color: #c62828;
+  border-color: #c62828;
+}
 
 .price-hint {
   background: #f5f5f5;
