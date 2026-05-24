@@ -4,12 +4,13 @@ import (
 	"artale_market/repository"
 )
 
+// FrequentItem 常用商品查詢結果
 type FrequentItem struct {
 	ItemID     uint   `json:"item_id"`
 	Name       string `json:"name"`
-	Percentage int    `json:"percentage"`
+	Percentage int    `json:"percentage"` // 卷軸成功率
 	Category   string `json:"category"`
-	Count      int    `json:"count"`
+	Count      int    `json:"count"` // 查詢次數
 }
 
 type QueryService interface {

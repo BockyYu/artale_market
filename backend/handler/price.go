@@ -3,6 +3,7 @@ package handler
 import (
 	"time"
 
+	"artale_market/dto"
 	"artale_market/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,12 +18,8 @@ func NewPriceHandler(svc service.PriceService, querySvc service.QueryService) *P
 	return &PriceHandler{svc: svc, querySvc: querySvc}
 }
 
-func (h *PriceHandler) GetSummary(c *gin.Context) {
-	var body struct {
-		Date       string   `json:"date"`
-		Percentage []int    `json:"percentage"`
-		Category   []string `json:"category"`
-	}
+func (h *PriceHandler) GetScrollSummary(c *gin.Context) {
+	var body dto.ScrollSearchReq
 	if err := c.ShouldBindJSON(&body); err != nil {
 		respBadRequest(c, err)
 		return
@@ -30,20 +27,44 @@ func (h *PriceHandler) GetSummary(c *gin.Context) {
 	if body.Date == "" {
 		body.Date = time.Now().Format("2006-01-02")
 	}
+	if body.Page < 1 {
+		body.Page = 1
+	}
+	if len(body.Category) == 1 && body.Category[0] == "scroll_all" {
+		body.Category = nil
+	}
 
-	summaries, err := h.svc.GetSummary(body.Date, body.Percentage, body.Category)
+	result, err := h.svc.GetScrollSummary(body.Date, body.Percentage, body.Category, body.SortBy, body.Page, body.PageSize)
 	if err != nil {
 		respInternal(c, err)
 		return
 	}
-	respOK(c, summaries)
+	respOK(c, result)
+}
+
+func (h *PriceHandler) GetSkillBookSummary(c *gin.Context) {
+	var body dto.SkillBookSearchReq
+	if err := c.ShouldBindJSON(&body); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	if body.Date == "" {
+		body.Date = time.Now().Format("2006-01-02")
+	}
+	if body.Page < 1 {
+		body.Page = 1
+	}
+
+	result, err := h.svc.GetSkillBookSummary(body.Date, body.Category, body.SortBy, body.Page, body.PageSize)
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, result)
 }
 
 func (h *PriceHandler) RecordPrice(c *gin.Context) {
-	var input struct {
-		Price float64 `json:"price" binding:"required,gt=0"`
-		Date  string  `json:"date"`
-	}
+	var input dto.RecordPriceReq
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respBadRequest(c, err)
 		return

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -9,7 +10,9 @@ import (
 )
 
 type PriceService interface {
-	GetSummary(date string, pcts []int, categories []string) ([]model.PriceSummary, error)
+	GetSummary(date string, pcts []int, categories []string, itemTypes []int, sortBy string, page, pageSize int) (*model.PagedSummary, error)
+	GetScrollSummary(date string, pcts []int, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
+	GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	Record(itemID uint, price float64, date string) (*model.PriceRecord, error)
 	GetHistory(itemID uint) ([]model.PriceRecord, error)
 }
@@ -23,18 +26,7 @@ func NewPriceService(ir repository.ItemRepository, pr repository.PriceRepository
 	return &priceService{itemRepo: ir, priceRepo: pr}
 }
 
-func (svc *priceService) GetSummary(date string, pcts []int, categories []string) ([]model.PriceSummary, error) {
-	var items []model.Item
-	var err error
-	if len(pcts) > 0 || len(categories) > 0 {
-		items, err = svc.itemRepo.FindWithFilters(pcts, categories)
-	} else {
-		items, err = svc.itemRepo.FindAll()
-	}
-	if err != nil {
-		return nil, err
-	}
-
+func (svc *priceService) GetSummary(date string, pcts []int, categories []string, itemTypes []int, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
 	ref, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		ref = time.Now()
@@ -42,6 +34,29 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 	today := ref.Format("2006-01-02")
 	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
 	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
+
+	items, total, err := svc.itemRepo.FindPage(pcts, categories, itemTypes, sortBy, today, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	itemIDs := make([]uint, len(items))
+	for i, item := range items {
+		itemIDs[i] = item.ID
+	}
+
+	priceRecords, err := svc.priceRepo.FindByItemsAndDates(itemIDs, []string{today, yesterday, threeDaysAgo})
+	if err != nil {
+		return nil, err
+	}
+
+	// key: "itemID|date"
+	priceMap := make(map[string]*model.PriceRecord, len(priceRecords))
+	for i := range priceRecords {
+		r := &priceRecords[i]
+		key := fmt.Sprintf("%d|%s", r.ItemID, r.RecordedDate.Format("2006-01-02"))
+		priceMap[key] = r
+	}
 
 	summaries := make([]model.PriceSummary, 0, len(items))
 	for _, item := range items {
@@ -54,7 +69,7 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 			Description:    item.Description,
 		}
 
-		if r, err := svc.priceRepo.FindByItemAndDate(item.ID, today); err == nil {
+		if r := priceMap[fmt.Sprintf("%d|%s", item.ID, today)]; r != nil {
 			p := r.Price
 			s.TodayPrice = &p
 			s.TodayCreatedAt = &r.CreatedAt
@@ -62,13 +77,11 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 				s.TodayUpdatedAt = &r.UpdatedAt
 			}
 		}
-
-		if r, err := svc.priceRepo.FindByItemAndDate(item.ID, yesterday); err == nil {
+		if r := priceMap[fmt.Sprintf("%d|%s", item.ID, yesterday)]; r != nil {
 			p := r.Price
 			s.YesterdayPrice = &p
 		}
-
-		if r, err := svc.priceRepo.FindByItemAndDate(item.ID, threeDaysAgo); err == nil {
+		if r := priceMap[fmt.Sprintf("%d|%s", item.ID, threeDaysAgo)]; r != nil {
 			p := r.Price
 			s.ThreeDaysAgoPrice = &p
 		}
@@ -82,7 +95,69 @@ func (svc *priceService) GetSummary(date string, pcts []int, categories []string
 		summaries = append(summaries, s)
 	}
 
-	return summaries, nil
+	return &model.PagedSummary{
+		Data:     summaries,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+func (svc *priceService) GetScrollSummary(date string, pcts []int, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
+	ref, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		ref = time.Now()
+	}
+	today := ref.Format("2006-01-02")
+	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
+	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
+
+	summaries, total, err := svc.itemRepo.FindScrollPage(pcts, categories, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range summaries {
+		s := &summaries[i]
+		if s.TodayPrice != nil && s.YesterdayPrice != nil && *s.YesterdayPrice != 0 {
+			pct := ((*s.TodayPrice - *s.YesterdayPrice) / *s.YesterdayPrice) * 100
+			pct = math.Round(pct*100) / 100
+			s.ChangePercent = &pct
+		}
+	}
+
+	return &model.PagedSummary{Data: summaries, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+func (svc *priceService) GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
+	ref, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		ref = time.Now()
+	}
+	today := ref.Format("2006-01-02")
+	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
+	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
+
+	summaries, total, err := svc.itemRepo.FindSkillBookPage(categories, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range summaries {
+		s := &summaries[i]
+		if s.TodayPrice != nil && s.YesterdayPrice != nil && *s.YesterdayPrice != 0 {
+			pct := ((*s.TodayPrice - *s.YesterdayPrice) / *s.YesterdayPrice) * 100
+			pct = math.Round(pct*100) / 100
+			s.ChangePercent = &pct
+		}
+	}
+
+	return &model.PagedSummary{
+		Data:     summaries,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
 }
 
 func (svc *priceService) Record(itemID uint, price float64, date string) (*model.PriceRecord, error) {

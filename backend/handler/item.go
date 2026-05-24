@@ -3,6 +3,7 @@ package handler
 import (
 	"time"
 
+	"artale_market/dto"
 	"artale_market/model"
 	"artale_market/service"
 
@@ -40,12 +41,7 @@ func (h *ItemHandler) Create(c *gin.Context) {
 }
 
 func (h *ItemHandler) Update(c *gin.Context) {
-	var input struct {
-		Name        string `json:"name" binding:"required"`
-		Percentage  int    `json:"percentage" binding:"required,min=1,max=100"`
-		Category    string `json:"category" binding:"required"`
-		Description string `json:"description"`
-	}
+	var input dto.UpdateItemReq
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respBadRequest(c, err)
 		return
@@ -77,9 +73,7 @@ func (h *ItemHandler) GetTracked(c *gin.Context) {
 }
 
 func (h *ItemHandler) SetTracked(c *gin.Context) {
-	var input struct {
-		TrackPriority model.TrackPriority `json:"track_priority" binding:"min=0,max=2"`
-	}
+	var input dto.SetTrackedReq
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respBadRequest(c, err)
 		return

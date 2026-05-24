@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import PotionTable from './PotionTable'
 
-const SUMMARY_API  = '/api/v1/search'
-const FREQUENT_API = '/api/me/frequent-items'
+const SCROLL_API   = '/api/v1/scrolls/search'
+const SKILLBOOK_API = '/api/v1/skillbooks/search'
 
 function getUserID() {
   let id = localStorage.getItem('artale_uid')
@@ -57,13 +57,17 @@ export default function App() {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
+  const localYesterday = () => {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
   const [filterDate, setFilterDate] = useState(localToday)
   const [searchText, setSearchText] = useState('')
   const [filterPct, setFilterPct] = useState([])
   const [filterCategories, setFilterCategories] = useState([])
   const [sortBy, setSortBy] = useState('price_desc')
 
-  const [frequentItems, setFrequentItems] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const searchRef = useRef(null)
 
@@ -72,69 +76,71 @@ export default function App() {
 
   const [selectedJob, setSelectedJob] = useState(ALL_SKILLBOOK_JOB)
   const [skillBookItems, setSkillBookItems] = useState([])
-  const [skillBookSortBy, setSkillBookSortBy] = useState('price_desc')
+  const [skillBookSortBy, setSkillBookSortBy] = useState('percentage_asc')
 
-  const fetchSummary = useCallback(async (date, pcts, categories) => {
+  const [scrollPage, setScrollPage] = useState(1)
+  const [scrollPageSize, setScrollPageSize] = useState(10)
+  const [scrollTotal, setScrollTotal] = useState(0)
+  const [skillBookPage, setSkillBookPage] = useState(1)
+  const [skillBookPageSize, setSkillBookPageSize] = useState(10)
+  const [skillBookTotal, setSkillBookTotal] = useState(0)
+
+  const fetchSummary = useCallback(async (date, pcts, categories, sortBy, page, pageSize) => {
     try {
-      const res = await fetch(SUMMARY_API, {
+      const res = await fetch(SCROLL_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, percentage: pcts, category: categories }),
+        body: JSON.stringify({ date, percentage: pcts, category: categories.length === 0 ? ['scroll_all'] : categories, sort_by: sortBy, page, page_size: pageSize }),
       })
-      setSummary(await res.json() || [])
+      const result = await res.json()
+      setSummary(result?.data || [])
+      setScrollTotal(result?.total || 0)
     } catch {
       setSummary([])
+      setScrollTotal(0)
     }
   }, [])
 
-  const fetchFrequent = useCallback(async () => {
+  const fetchAllItems = useCallback(async () => {
     try {
-      const res = await fetch(FREQUENT_API, { headers: { 'X-User-ID': USER_ID } })
-      setFrequentItems(await res.json() || [])
-    } catch {
-      setFrequentItems([])
-    }
-  }, [])
-
-  const fetchAllItems = useCallback(async (date) => {
-    try {
-      const res = await fetch(SUMMARY_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date }),
-      })
-      setAllItems(await res.json() || [])
+      const res = await fetch('/api/member/items')
+      const result = await res.json()
+      setAllItems(result || [])
     } catch {
       setAllItems([])
     }
   }, [])
 
-  const fetchSkillBooks = useCallback(async (job, date) => {
+  const fetchSkillBooks = useCallback(async (job, date, sortBy, page, pageSize) => {
     try {
-      const categories = job === ALL_SKILLBOOK_JOB
-        ? JOB_GROUPS.flatMap(g => g.items.map(i => i.value))
-        : [job]
-      const res = await fetch(SUMMARY_API, {
+      const categories = job === ALL_SKILLBOOK_JOB ? [] : [job]
+      const res = await fetch(SKILLBOOK_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, category: categories }),
+        body: JSON.stringify({ date, category: categories, sort_by: sortBy, page, page_size: pageSize }),
       })
-      setSkillBookItems(await res.json() || [])
+      const result = await res.json()
+      setSkillBookItems(result?.data || [])
+      setSkillBookTotal(result?.total || 0)
     } catch {
       setSkillBookItems([])
+      setSkillBookTotal(0)
     }
   }, [])
 
   useEffect(() => {
+    fetchAllItems()
+  }, [fetchAllItems])
+
+  useEffect(() => {
     if (viewMode === 'scroll') {
-      fetchSummary(filterDate, filterPct, filterCategories)
-      fetchAllItems(filterDate)
-      fetchFrequent()
+      fetchSummary(filterDate, filterPct, filterCategories, sortBy, scrollPage, scrollPageSize)
     } else {
-      fetchSkillBooks(selectedJob, filterDate)
+      fetchSkillBooks(selectedJob, filterDate, skillBookSortBy, skillBookPage, skillBookPageSize)
     }
-  }, [fetchSummary, fetchAllItems, fetchFrequent, fetchSkillBooks,
-      filterDate, filterPct, filterCategories, viewMode, selectedJob])
+  }, [fetchSummary, fetchSkillBooks,
+      filterDate, filterPct, filterCategories, sortBy, viewMode, selectedJob, skillBookSortBy,
+      scrollPage, scrollPageSize, skillBookPage, skillBookPageSize])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -146,10 +152,13 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  useEffect(() => { setScrollPage(1) }, [filterPct, filterCategories, filterDate, sortBy, pinnedItems.length, scrollPageSize])
+  useEffect(() => { setSkillBookPage(1) }, [selectedJob, filterDate, skillBookSortBy, skillBookPageSize])
+
   const pinItems = (items) => {
     setPinnedItems(prev => {
-      const existingIds = new Set(prev.map(p => p.item_id))
-      const added = items.filter(i => !existingIds.has(i.item_id))
+      const existingIds = new Set(prev.map(p => p.id))
+      const added = items.filter(i => !existingIds.has(i.id))
       return added.length ? [...prev, ...added] : prev
     })
   }
@@ -157,8 +166,8 @@ export default function App() {
   const suggestions = searchText.trim().length > 0
     ? [...new Set(
         allItems
-          .filter(item => item.item_name.toLowerCase().includes(searchText.trim().toLowerCase()))
-          .map(item => item.item_name)
+          .filter(item => item.name.toLowerCase().includes(searchText.trim().toLowerCase()))
+          .map(item => item.name)
       )].slice(0, 8)
     : []
 
@@ -198,14 +207,54 @@ export default function App() {
     return items
   }
 
-  const filteredSummary = sortItems(
-    pinnedItems.length > 0
-      ? pinnedItems.map(p => allItems.find(i => i.item_id === p.item_id) ?? p)
-      : summary,
-    sortBy
-  )
+  const filteredSummary = pinnedItems.length > 0
+    ? sortItems(
+        pinnedItems.map(p => summary.find(i => i.item_id === p.id) ?? { item_id: p.id, item_name: p.name, category: p.category }),
+        sortBy
+      )
+    : summary
 
-  const sortedSkillBooks = sortItems(skillBookItems, skillBookSortBy)
+  const sortedSkillBooks = skillBookItems
+
+  const getPageNumbers = (current, total) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+    const pages = [1]
+    if (current > 3) pages.push('...')
+    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+    if (current < total - 2) pages.push('...')
+    pages.push(total)
+    return pages
+  }
+
+  const PaginationBar = ({ page, pageSize, total, onPageChange, onPageSizeChange }) => {
+    const totalPages = Math.ceil(total / pageSize)
+    if (total === 0) return null
+    const pageNums = getPageNumbers(page, totalPages)
+    return (
+      <div className="pagination-bar">
+        <div className="page-size-selector">
+          <span className="pagination-label">每頁</span>
+          {[10, 20, 40, 60, 80, 100].map(size => (
+            <button
+              key={size}
+              className={`page-size-btn ${pageSize === size ? 'active' : ''}`}
+              onClick={() => onPageSizeChange(size)}
+            >{size}</button>
+          ))}
+        </div>
+        <div className="page-nav">
+          <button className="page-btn" disabled={page === 1} onClick={() => onPageChange(page - 1)}>←</button>
+          {pageNums.map((p, i) =>
+            p === '...'
+              ? <span key={`e${i}`} className="page-ellipsis">…</span>
+              : <button key={p} className={`page-btn ${page === p ? 'active' : ''}`} onClick={() => onPageChange(p)}>{p}</button>
+          )}
+          <button className="page-btn" disabled={page === totalPages} onClick={() => onPageChange(page + 1)}>→</button>
+        </div>
+        <span className="pagination-info">共 {total} 筆</span>
+      </div>
+    )
+  }
 
   const PCT_OPTIONS = [10, 30, 60, 100]
 
@@ -304,24 +353,7 @@ export default function App() {
 
       {activeTab === 'potion' && <PotionTable />}
 
-      {activeTab === 'market' && viewMode === 'scroll' && frequentItems.length > 0 && (
-        <div className="frequent-bar">
-          <span className="frequent-label">常用</span>
-          {frequentItems.map((fi) => (
-            <span
-              key={fi.item_id}
-              className="frequent-chip"
-              title={`已查詢 ${fi.count} 次`}
-            >
-              {fi.name}
-              <span className="frequent-pct">{fi.percentage}%</span>
-              <span className="frequent-count">{fi.count}次</span>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'market' && <div className="main-layout">
+{activeTab === 'market' && <div className="main-layout">
         <aside className="sidebar">
 
           {viewMode === 'scroll' ? (
@@ -436,7 +468,7 @@ export default function App() {
                       if (kw) {
                         const matched = allItems.filter(item => {
                           const keywords = kw.split(/\s+/)
-                          return keywords.every(k => `${item.item_name} ${item.category}`.toLowerCase().includes(k))
+                          return keywords.every(k => `${item.name} ${item.category}`.toLowerCase().includes(k))
                         })
                         if (matched.length > 0) pinItems(matched)
                         setSearchText('')
@@ -453,7 +485,7 @@ export default function App() {
                         className="suggestion-item"
                         onMouseDown={(e) => {
                           e.preventDefault()
-                          const item = allItems.find(i => i.item_name === name)
+                          const item = allItems.find(i => i.name === name)
                           if (item) pinItems([item])
                           setSearchText('')
                           setShowSuggestions(false)
@@ -506,20 +538,18 @@ export default function App() {
                 清除全部
               </button>
               {pinnedItems.map(pinned => {
-                const fresh = summary.find(i => i.item_id === pinned.item_id)
-                              ?? allItems.find(i => i.item_id === pinned.item_id)
-                              ?? pinned
+                const fresh = summary.find(i => i.item_id === pinned.id) ?? pinned
                 return (
-                  <div key={pinned.item_id} className="pinned-chip">
+                  <div key={pinned.id} className="pinned-chip">
                     <span className="pinned-chip-name">
-                      {pinned.item_name}
+                      {pinned.name}
                       {fresh.today_price != null && (
                         <span className="pinned-price">{fresh.today_price.toLocaleString()}</span>
                       )}
                     </span>
                     <button
                       className="pinned-chip-remove"
-                      onClick={() => setPinnedItems(prev => prev.filter(p => p.item_id !== pinned.item_id))}
+                      onClick={() => setPinnedItems(prev => prev.filter(p => p.id !== pinned.id))}
                     >×</button>
                   </div>
                 )
@@ -528,121 +558,139 @@ export default function App() {
           )}
 
           {viewMode === 'scroll' ? (
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>商品名稱</th>
-                    <th>類型</th>
-                    <th
-                      className="sortable-th"
-                      onClick={() => setSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
-                    >
-                      今日價格
-                      <span className="sort-icon">
-                        {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
-                      </span>
-                    </th>
-                    <th>昨日</th>
-                    <th>三天前</th>
-                    <th
-                      className="sortable-th"
-                      onClick={() => setSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
-                    >
-                      漲跌
-                      <span className="sort-icon">
-                        {sortBy === 'change_desc' ? ' ▼' : sortBy === 'change_asc' ? ' ▲' : ' ⇅'}
-                      </span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSummary.length === 0 ? (
+            <>
+              <div className="table-wrapper">
+                <table>
+                  <thead>
                     <tr>
-                      <td colSpan={6} className="empty">
-                        {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
-                      </td>
+                      <th>商品名稱</th>
+                      <th>類型</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
+                      >
+                        今日價格
+                        <span className="sort-icon">
+                          {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
+                      <th>昨日</th>
+                      <th>三天前</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
+                      >
+                        漲跌
+                        <span className="sort-icon">
+                          {sortBy === 'change_desc' ? ' ▼' : sortBy === 'change_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
                     </tr>
-                  ) : (
-                    filteredSummary.map((item) => (
-                      <tr key={item.item_id}>
-                        <td className="text-bold">{item.item_name}</td>
-                        <td>
-                          <span className="category-tag">{item.category}</span>
+                  </thead>
+                  <tbody>
+                    {filteredSummary.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="empty">
+                          {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
                         </td>
-                        <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
-                          {fmt(item.today_price)}
-                          {(item.today_updated_at || item.today_created_at) && (
-                            <div className="price-updated-at">
-                              {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          )}
-                        </td>
-                        <td className="text-muted">{fmt(item.yesterday_price)}</td>
-                        <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
-                        <td><ChangeCell pct={item.change_percent} /></td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      filteredSummary.map((item) => (
+                          <tr key={item.item_id}>
+                            <td className="text-bold">{item.item_name}</td>
+                            <td>
+                              <span className="category-tag">{item.category}</span>
+                            </td>
+                            <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
+                              {fmt(item.today_price)}
+                              {(item.today_updated_at || item.today_created_at) && (
+                                <div className="price-updated-at">
+                                  {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              )}
+                            </td>
+                            <td className="text-muted">{fmt(item.yesterday_price)}</td>
+                            <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
+                            <td><ChangeCell pct={item.change_percent} /></td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={scrollPage}
+                pageSize={scrollPageSize}
+                total={pinnedItems.length > 0 ? filteredSummary.length : scrollTotal}
+                onPageChange={setScrollPage}
+                onPageSizeChange={setScrollPageSize}
+              />
+            </>
           ) : (
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>技能書名稱</th>
-                    <th>職業</th>
-                    <th
-                      className="sortable-th"
-                      onClick={() => setSkillBookSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
-                    >
-                      今日價格
-                      <span className="sort-icon">
-                        {skillBookSortBy === 'price_desc' ? ' ▼' : skillBookSortBy === 'price_asc' ? ' ▲' : ' ⇅'}
-                      </span>
-                    </th>
-                    <th>昨日</th>
-                    <th>三天前</th>
-                    <th
-                      className="sortable-th"
-                      onClick={() => setSkillBookSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
-                    >
-                      漲跌
-                      <span className="sort-icon">
-                        {skillBookSortBy === 'change_desc' ? ' ▼' : skillBookSortBy === 'change_asc' ? ' ▲' : ' ⇅'}
-                      </span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedSkillBooks.length === 0 ? (
+            <>
+              <div className="table-wrapper">
+                <table>
+                  <thead>
                     <tr>
-                      <td colSpan={6} className="empty">尚無資料</td>
+                      <th>技能書名稱</th>
+                      <th>職業</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setSkillBookSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
+                      >
+                        今日價格
+                        <span className="sort-icon">
+                          {skillBookSortBy === 'price_desc' ? ' ▼' : skillBookSortBy === 'price_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
+                      <th>昨日</th>
+                      <th>三天前</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setSkillBookSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
+                      >
+                        漲跌
+                        <span className="sort-icon">
+                          {skillBookSortBy === 'change_desc' ? ' ▼' : skillBookSortBy === 'change_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
                     </tr>
-                  ) : (
-                    sortedSkillBooks.map((item) => (
-                      <tr key={item.item_id}>
-                        <td className="text-bold">{item.item_name}</td>
-                        <td><span className="category-tag">{item.category}</span></td>
-                        <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
-                          {fmt(item.today_price)}
-                          {(item.today_updated_at || item.today_created_at) && (
-                            <div className="price-updated-at">
-                              {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          )}
-                        </td>
-                        <td className="text-muted">{fmt(item.yesterday_price)}</td>
-                        <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
-                        <td><ChangeCell pct={item.change_percent} /></td>
+                  </thead>
+                  <tbody>
+                    {sortedSkillBooks.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="empty">尚無資料</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      sortedSkillBooks.map((item) => (
+                          <tr key={item.item_id}>
+                            <td className="text-bold">{item.item_name}</td>
+                            <td><span className="category-tag">{item.category}</span></td>
+                            <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
+                              {fmt(item.today_price)}
+                              {(item.today_updated_at || item.today_created_at) && (
+                                <div className="price-updated-at">
+                                  {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              )}
+                            </td>
+                            <td className="text-muted">{fmt(item.yesterday_price)}</td>
+                            <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
+                            <td><ChangeCell pct={item.change_percent} /></td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={skillBookPage}
+                pageSize={skillBookPageSize}
+                total={skillBookTotal}
+                onPageChange={setSkillBookPage}
+                onPageSizeChange={setSkillBookPageSize}
+              />
+            </>
           )}
 
         </div>{/* main-content */}

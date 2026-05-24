@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"artale_market/dto"
 	"artale_market/middleware"
 	"artale_market/service"
 
@@ -20,10 +21,7 @@ func NewAdminHandler(adminSvc service.AdminService) *AdminHandler {
 }
 
 func (h *AdminHandler) Login(c *gin.Context) {
-	var req struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
-	}
+	var req dto.LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respBadRequest(c, errors.New("username and password required"))
 		return
@@ -60,11 +58,7 @@ func (h *AdminHandler) List(c *gin.Context) {
 }
 
 func (h *AdminHandler) Create(c *gin.Context) {
-	var req struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
-		Role     string `json:"role"`
-	}
+	var req dto.CreateAdminReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respBadRequest(c, err)
 		return
@@ -78,11 +72,7 @@ func (h *AdminHandler) Create(c *gin.Context) {
 }
 
 func (h *AdminHandler) Update(c *gin.Context) {
-	var req struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Role     string `json:"role"`
-	}
+	var req dto.UpdateAdminReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respBadRequest(c, err)
 		return

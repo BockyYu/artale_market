@@ -8,9 +8,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// FrequentEntry Redis ZSet 查詢結果的單筆紀錄
 type FrequentEntry struct {
-	ItemID uint
-	Count  int
+	ItemID uint // 商品 ID
+	Count  int  // 被查詢次數
 }
 
 type QueryRepository interface {

@@ -8,6 +8,7 @@ import (
 
 type PriceRepository interface {
 	FindByItemAndDate(itemID uint, date string) (*model.PriceRecord, error)
+	FindByItemsAndDates(itemIDs []uint, dates []string) ([]model.PriceRecord, error)
 	Create(record *model.PriceRecord) error
 	UpdatePrice(record *model.PriceRecord, price float64) error
 	FindHistoryByItem(itemID uint, limit int) ([]model.PriceRecord, error)
@@ -29,6 +30,12 @@ func (r *priceRepo) FindByItemAndDate(itemID uint, date string) (*model.PriceRec
 		return nil, err
 	}
 	return &record, nil
+}
+
+func (r *priceRepo) FindByItemsAndDates(itemIDs []uint, dates []string) ([]model.PriceRecord, error) {
+	var records []model.PriceRecord
+	err := r.db.Where("item_id IN ? AND recorded_date IN ?", itemIDs, dates).Find(&records).Error
+	return records, err
 }
 
 func (r *priceRepo) Create(record *model.PriceRecord) error {

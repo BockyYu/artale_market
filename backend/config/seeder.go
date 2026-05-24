@@ -47,9 +47,16 @@ func SeedScrolls(db *gorm.DB) {
 			continue
 		}
 
-		// 已存在，只同步 track_priority
+		// 已存在，同步 track_priority 與 item_type
+		updates := map[string]any{}
 		if existing.TrackPriority != s.TrackPriority {
-			if err := db.Model(&existing).Update("track_priority", s.TrackPriority).Error; err != nil {
+			updates["track_priority"] = s.TrackPriority
+		}
+		if existing.ItemType != s.ItemType {
+			updates["item_type"] = s.ItemType
+		}
+		if len(updates) > 0 {
+			if err := db.Model(&existing).Updates(updates).Error; err != nil {
 				log.Printf("[Seed] failed to patch %s: %v", s.Name, err)
 			} else {
 				patched++
