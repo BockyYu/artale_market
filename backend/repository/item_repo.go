@@ -117,16 +117,8 @@ func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string
 	}
 
 	q := r.db.Model(&model.Item{}).
-		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage,
-			items.item_type AS item_type, items.category AS category, items.description AS description,
-			pr_today.price      AS today_price,
-			pr_today.created_at AS today_created_at,
-			pr_today.updated_at AS today_updated_at,
-			pr_yesterday.price  AS yesterday_price,
-			pr_3days.price      AS three_days_ago_price`).
-		Joins(`LEFT JOIN price_records pr_today     ON pr_today.item_id     = items.id AND pr_today.recorded_date     = ?
-			LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ?
-			LEFT JOIN price_records pr_3days     ON pr_3days.item_id     = items.id AND pr_3days.recorded_date     = ?`,
+		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_3days.price AS three_days_ago_price`).
+		Joins("LEFT JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
 		Where("items.item_type = ?", model.ItemTypeScroll)
 
@@ -171,16 +163,8 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 	}
 
 	q := r.db.Model(&model.Item{}).
-		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage,
-			items.item_type AS item_type, items.category AS category, items.description AS description,
-			pr_today.price      AS today_price,
-			pr_today.created_at AS today_created_at,
-			pr_today.updated_at AS today_updated_at,
-			pr_yesterday.price  AS yesterday_price,
-			pr_3days.price      AS three_days_ago_price`).
-		Joins(`LEFT JOIN price_records pr_today     ON pr_today.item_id     = items.id AND pr_today.recorded_date     = ?
-			LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ?
-			LEFT JOIN price_records pr_3days     ON pr_3days.item_id     = items.id AND pr_3days.recorded_date     = ?`,
+		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_3days.price AS three_days_ago_price`).
+		Joins("LEFT JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
 		Where("items.item_type = ?", model.ItemTypeSkillBook)
 

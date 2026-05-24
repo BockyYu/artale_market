@@ -11,6 +11,7 @@ const (
 	ItemTypeConsume   ItemType = 3 // 消耗品
 	ItemTypeSkillBook ItemType = 4 // 技能書
 	ItemTypePoints    ItemType = 5 // 商城
+	ItemTypeEquip    ItemType = 6 // 裝備
 )
 
 // TrackPriority 追蹤優先等級

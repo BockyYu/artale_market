@@ -78,7 +78,7 @@ var skillBookSeeds = []seedScroll{
 	// ════════════════════════════════════════
 	{Name: "[技能書] 弩術精通 20", Percentage: 20, Category: "神射手", Description: "神射手", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 弩術精通 30", Percentage: 30, Category: "神射手", Description: "神射手", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
-	{Name: "[技能書] 光速神弩 20", Percentage: 20, Category: "神射手", Description: "神射手", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "[技能書] 光速神弩 20", Percentage: 20, Category: "神射手", Description: "神射手", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 光速神弩 30", Percentage: 30, Category: "神射手", Description: "神射手", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "[技能書] 必殺狙擊 20", Percentage: 20, Category: "神射手", Description: "神射手", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 必殺狙擊 30", Percentage: 30, Category: "神射手", Description: "神射手", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityNotSeen},
@@ -92,7 +92,7 @@ var skillBookSeeds = []seedScroll{
 	// ════════════════════════════════════════
 	{Name: "[技能書] 魔力無限 20", Percentage: 20, Category: "法師", Description: "法師", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "[技能書] 魔力無限 30", Percentage: 30, Category: "法師", Description: "法師", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
-	{Name: "[技能書] 核爆術 20", Percentage: 20, Category: "法師", Description: "法師", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "[技能書] 核爆術 20", Percentage: 20, Category: "法師", Description: "法師", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 核爆術 30", Percentage: 30, Category: "法師", Description: "法師", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "[技能書] 魔法反射 20", Percentage: 20, Category: "法師", Description: "法師", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 魔法反射 30", Percentage: 30, Category: "法師", Description: "法師", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
@@ -187,7 +187,7 @@ var skillBookSeeds = []seedScroll{
 	{Name: "[技能書] 閃‧索命 30", Percentage: 30, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "[技能書] 閃‧爆破 20", Percentage: 20, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "[技能書] 閃‧連殺 20", Percentage: 20, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "[技能書] 閃‧連殺 30", Percentage: 30, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "[技能書] 閃‧連殺 30", Percentage: 30, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 最終極速 20", Percentage: 20, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 時間置換 20", Percentage: 20, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},
 	{Name: "[技能書] 元氣彈 20", Percentage: 20, Category: "拳霸", Description: "拳霸", ItemType: model.ItemTypeSkillBook, TrackPriority: model.TrackPriorityOff},

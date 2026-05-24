@@ -29,9 +29,8 @@ logger = logging.getLogger(__name__)
 # OCR 引擎懶初始化
 _reader: easyocr.Reader | None = None
 
-# 搜尋輸入框中心（固定座標，相對於視窗左上角）
-_SEARCH_BOX_X = 403
-_SEARCH_BOX_Y = 77
+# 搜尋輸入框快取：(center_x, center_y)，相對於視窗左上角
+_search_box_cache: tuple[int, int] | None = None
 
 # 「每個價錢」欄位快取：(center_x, center_y, col_x_min, col_x_max, row_y_min)
 _price_header_cache: tuple[int, int, int, int, int] | None = None
@@ -95,9 +94,34 @@ def _capture_full(win) -> tuple[np.ndarray, int, int]:
 # 自動化步驟
 # ---------------------------------------------------------------------------
 
+def _find_search_box(win) -> tuple[int, int]:
+    """
+    OCR 自動偵測搜尋輸入框（「請輸入道具名稱」）位置，結果快取。
+    找不到則拋出 RuntimeError。
+    """
+    global _search_box_cache
+    if _search_box_cache is not None:
+        return _search_box_cache
+
+    logger.info("  自動偵測搜尋輸入框位置...")
+    img, _, _ = _capture_full(win)
+    results = _get_reader().readtext(img)
+
+    for bbox, text, _ in results:
+        if any(k in text.replace(" ", "") for k in ["請輸入", "道具名稱", "輸入道具"]):
+            cx = int((bbox[0][0] + bbox[2][0]) / 2)
+            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            _search_box_cache = (cx, cy)
+            logger.info(f"  搜尋框偵測成功：center=({cx},{cy})")
+            return _search_box_cache
+
+    raise RuntimeError("無法偵測搜尋輸入框，請確認遊戲畫面正確顯示拍賣介面")
+
+
 def search_item(win, item_name: str) -> None:
-    """在搜尋欄輸入商品名稱並送出（固定座標，不需 OCR）。"""
-    pyautogui.click(win.left + _SEARCH_BOX_X, win.top + _SEARCH_BOX_Y)
+    """在搜尋欄輸入商品名稱並送出。"""
+    cx, cy = _find_search_box(win)
+    pyautogui.click(win.left + cx, win.top + cy)
     time.sleep(0.2)
     pyautogui.hotkey("ctrl", "a")
     pyperclip.copy(item_name)
@@ -124,7 +148,7 @@ def _find_price_header(win) -> tuple[int, int, int, int, int]:
 
     # 單一文字塊命中
     for bbox, text, _ in results:
-        if "每個價錢" in text.replace(" ", ""):
+        if "每個" in text.replace(" ", ""):
             x1, x2 = int(bbox[0][0]), int(bbox[2][0])
             cy = int((bbox[0][1] + bbox[2][1]) / 2)
             cx = (x1 + x2) // 2
@@ -141,24 +165,7 @@ def _find_price_header(win) -> tuple[int, int, int, int, int]:
         row_map.setdefault(round(cy / 15) * 15, []).append(
             (cx, cy, text.replace(" ", ""), int(bbox[0][0]), int(bbox[2][0]))
         )
-
-    for frags in sorted(row_map.values(), key=lambda f: f[0][1]):
-        frags.sort(key=lambda f: f[0])
-        merged = "".join(f[2] for f in frags)
-        if "每個價錢" in merged or ("每個" in merged and "價錢" in merged):
-            relevant = [f for f in frags if any(k in f[2] for k in ["每個", "價錢"])] or frags
-            cx = sum(f[0] for f in relevant) // len(relevant)
-            cy = sum(f[1] for f in relevant) // len(relevant)
-            x1 = min(f[3] for f in relevant)
-            x2 = max(f[4] for f in relevant)
-            pad = max(60, (x2 - x1) // 2)
-            _price_header_cache = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
-            logger.info(f"  偵測成功（合併）：center=({cx},{cy})")
-            return _price_header_cache
-
-    logger.warning("  無法偵測「每個價錢」位置，使用預設座標")
-    _price_header_cache = (1195, 243, 1095, 1295, 260)
-    return _price_header_cache
+    raise RuntimeError("無法偵測「每個價錢」欄位位置，請確認遊戲畫面正確顯示拍賣列表")
 
 
 def click_sort_by_lowest(win) -> tuple[int, int, int]:
@@ -174,6 +181,7 @@ def _parse_price(text: str) -> int | None:
     """將 OCR 讀到的價格文字轉成整數，支援「萬」單位（例如 3,099萬 → 30990000）。"""
     text = text.strip()
     if "萬" in text or "万" in text:
+        logger.info(f"  _parse_price 偵測到萬：原始輸入 {repr(text)}")
         parts = re.split(r"[萬万]", text)
         wan_str = re.sub(r"[^\d]", "", parts[0])
         rem_str = re.sub(r"[^\d]", "", parts[1]) if len(parts) > 1 else ""
@@ -208,7 +216,6 @@ def read_lowest_price(win, x_min: int, x_max: int, y_min: int) -> int | None:
         fragments = sorted(row_map[row_key], key=lambda f: f[0])
         cy = int(sum(f[1] for f in fragments) / len(fragments))
         merged = "".join(f[2] for f in fragments)
-        logger.debug(f"  OCR 列 y≈{cy}: {merged!r}")
         # 跳過括號內的合計列（例如「(8萬 3,000)」）
         if "(" in merged or "（" in merged:
             continue
@@ -229,6 +236,45 @@ def read_lowest_price(win, x_min: int, x_max: int, y_min: int) -> int | None:
 # ---------------------------------------------------------------------------
 # 主要入口
 # ---------------------------------------------------------------------------
+
+def verify_price_header(win) -> None:
+    """
+    每次執行前呼叫，強制重新截圖並同時偵測搜尋輸入框和「每個價錢」欄位位置。
+    任一找不到則拋出 RuntimeError，終止本次執行。
+    """
+    global _search_box_cache, _price_header_cache
+    _search_box_cache = None
+    _price_header_cache = None
+
+    logger.info("  偵測介面元素（搜尋框 + 每個價錢欄位）...")
+    img, _, _ = _capture_full(win)
+    results = _get_reader().readtext(img)
+
+    # 偵測搜尋框
+    for bbox, text, _ in results:
+        if any(k in text.replace(" ", "") for k in ["請輸入", "道具名稱", "輸入道具"]):
+            cx = int((bbox[0][0] + bbox[2][0]) / 2)
+            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            _search_box_cache = (cx, cy)
+            logger.info(f"  搜尋框：center=({cx},{cy})")
+            break
+
+    if _search_box_cache is None:
+        raise RuntimeError("無法偵測搜尋輸入框，請確認遊戲畫面正確顯示拍賣介面")
+
+    # 偵測「每個價錢」欄位（共用同一份 OCR 結果，不需再次截圖）
+    for bbox, text, _ in results:
+        if "每個" in text.replace(" ", ""):
+            x1, x2 = int(bbox[0][0]), int(bbox[2][0])
+            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            cx = (x1 + x2) // 2
+            pad = max(60, (x2 - x1) // 2)
+            _price_header_cache = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
+            logger.info(f"  每個價錢欄位：center=({cx},{cy})，擷取區間 x=[{max(0, x1-pad)},{x2+pad}]")
+            return
+
+    raise RuntimeError("無法偵測「每個價錢」欄位，請確認遊戲畫面正確顯示拍賣列表")
+
 
 def scrape_item(win, item_name: str) -> int | None:
     """搜尋單一商品並回傳最低單價。"""

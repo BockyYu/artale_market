@@ -20,7 +20,7 @@ import schedule
 
 from api_client import fetch_items, record_price
 from config import BETWEEN_ITEMS_DELAY, SCHEDULE_TIME
-from scraper import get_game_window, scrape_item
+from scraper import get_game_window, scrape_item, verify_price_header
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,7 +46,14 @@ def run(dry_run: bool = False) -> None:
         logger.error(str(e))
         return
 
-    # 2. 從後端取得商品列表
+    # 2. 偵測介面元素（搜尋框 + 每個價錢欄位），找不到直接中止
+    try:
+        verify_price_header(win)
+    except RuntimeError as e:
+        logger.error(f"前置檢查失敗：{e}")
+        return
+
+    # 3. 從後端取得商品列表
     try:
         items = fetch_items()
     except Exception as e:
