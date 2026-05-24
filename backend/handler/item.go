@@ -62,6 +62,15 @@ func (h *ItemHandler) Delete(c *gin.Context) {
 	respDeleted(c)
 }
 
+func (h *ItemHandler) GetByID(c *gin.Context) {
+	summary, err := h.svc.GetPriceSummary(parseID(c))
+	if err != nil {
+		respNotFound(c, err)
+		return
+	}
+	respOK(c, summary)
+}
+
 func (h *ItemHandler) GetTracked(c *gin.Context) {
 	today := time.Now().Format("2006-01-02")
 	items, err := h.svc.GetTracked(today)

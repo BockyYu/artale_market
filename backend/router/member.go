@@ -17,7 +17,7 @@ func registerMember(g *gin.RouterGroup, d *Deps) {
 	g.POST("/v1/scrolls/search", d.Price.GetScrollSummary)
 	g.POST("/v1/skillbooks/search", d.Price.GetSkillBookSummary)
 	g.POST("/items/:id/prices", d.Price.RecordPrice)
-	g.GET("/items/:id/prices", d.Price.GetHistory)
+	g.GET("/items/:id/prices", d.Item.GetByID)
 
 	// TODO: 常用商品功能，暫不開放
 	// g.GET("/me/frequent-items", d.Query.GetFrequent)

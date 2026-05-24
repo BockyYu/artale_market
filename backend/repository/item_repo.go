@@ -15,6 +15,7 @@ type ItemRepository interface {
 	FindScrollPage(pcts []int, categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
 	FindSkillBookPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
 	FindByID(id uint) (*model.Item, error)
+	FindByIDSummary(id uint, today, yesterday, threeDaysAgo string) (*model.PriceSummary, error)
 	FindTracked(date string) ([]model.Item, error)
 	Create(item *model.Item) error
 	Update(item *model.Item, fields map[string]any) error
@@ -201,6 +202,16 @@ func (r *itemRepo) FindByID(id uint) (*model.Item, error) {
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (r *itemRepo) FindByIDSummary(id uint, today, yesterday, threeDaysAgo string) (*model.PriceSummary, error) {
+	var summary model.PriceSummary
+	err := r.db.Model(&model.Item{}).
+		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_3days.price AS three_days_ago_price`).
+		Joins("LEFT JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?", today, yesterday, threeDaysAgo).
+		Where("items.id = ?", id).
+		Scan(&summary).Error
+	return &summary, err
 }
 
 func (r *itemRepo) FindTracked(date string) ([]model.Item, error) {

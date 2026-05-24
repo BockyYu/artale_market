@@ -73,6 +73,7 @@ export default function App() {
 
   const [allItems, setAllItems] = useState([])
   const [pinnedItems, setPinnedItems] = useState([])
+  const [pinnedPrices, setPinnedPrices] = useState({})
 
   const [selectedJob, setSelectedJob] = useState(ALL_SKILLBOOK_JOB)
   const [skillBookItems, setSkillBookItems] = useState([])
@@ -155,13 +156,30 @@ export default function App() {
   useEffect(() => { setScrollPage(1) }, [filterPct, filterCategories, filterDate, sortBy, pinnedItems.length, scrollPageSize])
   useEffect(() => { setSkillBookPage(1) }, [selectedJob, filterDate, skillBookSortBy, skillBookPageSize])
 
-  const pinItems = (items) => {
-    setPinnedItems(prev => {
-      const existingIds = new Set(prev.map(p => p.id))
-      const added = items.filter(i => !existingIds.has(i.id))
-      return added.length ? [...prev, ...added] : prev
+  const fetchPinnedItemPrices = useCallback(async (items) => {
+    if (items.length === 0) return
+    const results = await Promise.all(items.map(async (item) => {
+      try {
+        const res = await fetch(`/api/items/${item.id}/prices`)
+        return await res.json()
+      } catch {
+        return { item_id: item.id, item_name: item.name, category: item.category }
+      }
+    }))
+    setPinnedPrices(prev => {
+      const next = { ...prev }
+      for (const r of results) next[r.item_id] = r
+      return next
     })
-  }
+  }, [])
+
+  const pinItems = useCallback((items) => {
+    const existingIds = new Set(pinnedItems.map(p => p.id))
+    const added = items.filter(i => !existingIds.has(i.id))
+    if (!added.length) return
+    setPinnedItems(prev => [...prev, ...added])
+    fetchPinnedItemPrices(added)
+  }, [pinnedItems, fetchPinnedItemPrices])
 
   const suggestions = searchText.trim().length > 0
     ? [...new Set(
@@ -209,7 +227,7 @@ export default function App() {
 
   const filteredSummary = pinnedItems.length > 0
     ? sortItems(
-        pinnedItems.map(p => summary.find(i => i.item_id === p.id) ?? { item_id: p.id, item_name: p.name, category: p.category }),
+        pinnedItems.map(p => pinnedPrices[p.id] ?? { item_id: p.id, item_name: p.name, category: p.category }),
         sortBy
       )
     : summary
