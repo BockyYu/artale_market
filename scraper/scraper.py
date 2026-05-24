@@ -19,6 +19,7 @@ import pyperclip
 from PIL import Image
 
 from config import (
+    AFTER_ROW_CLICK_DELAY,
     AFTER_SEARCH_DELAY,
     AFTER_SORT_DELAY,
     WINDOW_TITLE,
@@ -28,6 +29,9 @@ logger = logging.getLogger(__name__)
 
 # OCR 引擎懶初始化
 _reader: easyocr.Reader | None = None
+
+# 商品類型常數（對應後端 model.ItemType）
+_ITEM_TYPE_EQUIP = 6
 
 # 搜尋輸入框快取：(center_x, center_y)，相對於視窗左上角
 _search_box_cache: tuple[int, int] | None = None
@@ -233,6 +237,51 @@ def read_lowest_price(win, x_min: int, x_max: int, y_min: int) -> int | None:
     return price
 
 
+def read_equipment_price(win, cx: int, y_min: int) -> int | None:
+    """
+    點擊排序後第一筆裝備，從下方詳情面板讀取單價。
+    cx     : 每個價錢欄位中心 x（相對視窗左上角）
+    y_min  : 列表資料起始 y（= 欄位標題中心 y + 20）
+    """
+    # 點擊第一筆資料行（假設行高約 30px，第一行中心在 y_min + 15）
+    first_row_y = y_min + 15
+    pyautogui.click(win.left + cx, win.top + first_row_y)
+    logger.debug(f"  已點擊第一筆裝備 ({cx}, {first_row_y})")
+    time.sleep(AFTER_ROW_CLICK_DELAY)
+
+    # 擷取詳情面板（列表下方，跳過列表本身約 200px）
+    detail_y = y_min + 200
+    img = _capture_column(win, 0, win.width, detail_y)
+    results = _get_reader().readtext(img)
+
+    row_map: dict[int, list[tuple[int, int, str]]] = {}
+    for bbox, text, _conf in results:
+        cy = int((bbox[0][1] + bbox[2][1]) / 2)
+        cx_frag = int((bbox[0][0] + bbox[2][0]) / 2)
+        row_key = round(cy / 12) * 12
+        row_map.setdefault(row_key, []).append((cx_frag, cy, text))
+
+    candidates: list[tuple[int, int]] = []
+    for row_key in sorted(row_map.keys()):
+        fragments = sorted(row_map[row_key], key=lambda f: f[0])
+        cy = int(sum(f[1] for f in fragments) / len(fragments))
+        merged = "".join(f[2] for f in fragments)
+        if "(" in merged or "（" in merged:
+            continue
+        price = _parse_price(merged)
+        if price is not None:
+            candidates.append((cy, price))
+
+    if not candidates:
+        logger.warning("  無法讀取裝備詳情價格")
+        return None
+
+    candidates.sort(key=lambda t: t[0])
+    price = candidates[0][1]
+    logger.debug(f"  裝備詳情最低價: {price:,}")
+    return price
+
+
 # ---------------------------------------------------------------------------
 # 主要入口
 # ---------------------------------------------------------------------------
@@ -276,8 +325,14 @@ def verify_price_header(win) -> None:
     raise RuntimeError("無法偵測「每個價錢」欄位，請確認遊戲畫面正確顯示拍賣列表")
 
 
-def scrape_item(win, item_name: str) -> int | None:
-    """搜尋單一商品並回傳最低單價。"""
+def scrape_item(win, item_name: str, item_type: int = 1) -> int | None:
+    """搜尋單一商品並回傳最低單價。裝備類型使用詳情面板讀價。"""
     search_item(win, item_name)
-    x_min, x_max, y_min = click_sort_by_lowest(win)
+    cx, cy, x_min, x_max, y_min = _find_price_header(win)
+    pyautogui.click(win.left + cx, win.top + cy)
+    logger.debug(f"  已點擊每個價錢排序 ({cx}, {cy})")
+    time.sleep(AFTER_SORT_DELAY)
+
+    if item_type == _ITEM_TYPE_EQUIP:
+        return read_equipment_price(win, cx, y_min)
     return read_lowest_price(win, x_min, x_max, y_min)

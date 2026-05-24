@@ -17,3 +17,5 @@ AFTER_SEARCH_DELAY = float(os.getenv("AFTER_SEARCH_DELAY", "2.5"))
 AFTER_SORT_DELAY = float(os.getenv("AFTER_SORT_DELAY", "1.5"))
 # 每個商品之間的間隔，避免操作太快
 BETWEEN_ITEMS_DELAY = float(os.getenv("BETWEEN_ITEMS_DELAY", "3.0"))
+# 點擊裝備列表第一筆後，等待詳情面板載入的時間
+AFTER_ROW_CLICK_DELAY = float(os.getenv("AFTER_ROW_CLICK_DELAY", "1.0"))

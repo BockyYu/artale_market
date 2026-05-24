@@ -12,7 +12,7 @@ def fetch_items() -> list[dict]:
     if not isinstance(data, list):
         return []
     # 統一欄位名稱供 main.py 使用
-    return [{"item_id": item["id"], "item_name": item["name"]} for item in data]
+    return [{"item_id": item["id"], "item_name": item["name"], "item_type": item.get("item_type", 1)} for item in data]
 
 
 def record_price(item_id: int, price: int) -> bool:

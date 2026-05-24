@@ -75,9 +75,10 @@ def run(dry_run: bool = False) -> None:
         if not name or item_id is None:
             continue
 
+        item_type = item.get("item_type", 1)
         logger.info(f"▶ {name}")
         try:
-            price = scrape_item(win, name)
+            price = scrape_item(win, name, item_type)
 
             if price is None:
                 logger.warning(f"  找不到價格，跳過")
