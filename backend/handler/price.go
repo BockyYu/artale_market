@@ -99,3 +99,12 @@ func (h *PriceHandler) GetHistory(c *gin.Context) {
 	}
 	respOK(c, records)
 }
+
+func (h *PriceHandler) AdminGetHistory(c *gin.Context) {
+	records, err := h.svc.GetAllHistory(parseID(c))
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, records)
+}

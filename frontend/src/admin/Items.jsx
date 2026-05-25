@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listItems, createItem, updateItemTrack } from './api'
+import { listItems, createItem, updateItemTrack, getItemPrices } from './api'
 
 const EMPTY_FORM = { name: '', item_type: 1, category: '', percentage: 0, description: '', track_priority: 0 }
 
@@ -10,6 +10,7 @@ const ITEM_TYPE_LABEL = {
   4: '技能書',
   5: '商城',
   6: '裝備',
+  7: '活動道具',
 }
 
 const TRACK_PRIORITY_LABEL = {
@@ -37,6 +38,9 @@ export default function Items() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
+  const [historyItem, setHistoryItem] = useState(null)
+  const [historyRecords, setHistoryRecords] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   const load = useCallback(async (sort) => {
     setLoading(true)
@@ -54,6 +58,20 @@ export default function Items() {
 
   function handleSortPrice() {
     setSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')
+  }
+
+  async function handleOpenHistory(item) {
+    setHistoryItem(item)
+    setHistoryRecords([])
+    setHistoryLoading(true)
+    try {
+      const records = await getItemPrices(item.id)
+      setHistoryRecords(records || [])
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setHistoryLoading(false)
+    }
   }
 
   async function handleCreate(e) {
@@ -81,7 +99,7 @@ export default function Items() {
     setUpdating(item.id)
     try {
       const updated = await updateItemTrack(item.id, priority)
-      setItems(prev => prev.map(i => i.id === item.id ? updated : i))
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, ...updated } : i))
     } catch (err) {
       alert(err.message)
     } finally {
@@ -157,15 +175,16 @@ export default function Items() {
                   {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
                 </span>
               </th>
+              <th>歷史價格</th>
               <th>查詢優先度</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr className="empty-row"><td colSpan={6}>載入中...</td></tr>
+              <tr className="empty-row"><td colSpan={7}>載入中...</td></tr>
             )}
             {!loading && filtered.length === 0 && (
-              <tr className="empty-row"><td colSpan={6}>無符合資料</td></tr>
+              <tr className="empty-row"><td colSpan={7}>無符合資料</td></tr>
             )}
             {filtered.map(item => (
               <tr key={item.id}>
@@ -175,6 +194,9 @@ export default function Items() {
                 <td>{ITEM_TYPE_LABEL[item.item_type] ?? item.item_type}</td>
                 <td className={item.latest_price != null ? 'text-price' : 'text-muted'}>
                   {item.latest_price != null ? item.latest_price.toLocaleString() : '—'}
+                </td>
+                <td>
+                  <button className="btn-action btn-edit" onClick={() => handleOpenHistory(item)}>查看</button>
                 </td>
                 <td>
                   {item.track_priority === 3 ? (
@@ -208,6 +230,43 @@ export default function Items() {
           </tbody>
         </table>
       </div>
+      {historyItem && (
+        <div className="modal-overlay" onClick={() => setHistoryItem(null)}>
+          <div className="modal" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
+            <h2>{historyItem.name} — 歷史價格</h2>
+            {historyLoading ? (
+              <p style={{ color: '#6b7280', fontSize: 14 }}>載入中...</p>
+            ) : historyRecords.length === 0 ? (
+              <p style={{ color: '#9ca3af', fontSize: 14 }}>尚無價格記錄</p>
+            ) : (
+              <div style={{ maxHeight: 400, overflowY: 'auto', marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 8 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#6b7280', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>日期</th>
+                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#6b7280', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>價格</th>
+                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#6b7280', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>更新時間</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRecords.map(r => (
+                      <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '10px 14px', fontSize: 14, color: '#374151' }}>{new Date(r.recorded_date).toLocaleDateString('zh-TW')}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 14, color: '#16a34a', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#6b7280' }}>{new Date(r.updated_at).toLocaleString('zh-TW')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setHistoryItem(null)}>關閉</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCreate && (
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>

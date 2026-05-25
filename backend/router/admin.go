@@ -36,5 +36,6 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.GET("/items", d.Item.AdminGetAll)
 		auth.POST("/items", d.Item.Create)
 		auth.PATCH("/items/:id/track", d.Item.SetTracked)
+		auth.GET("/items/:id/prices", d.Price.AdminGetHistory)
 	}
 }

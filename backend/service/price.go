@@ -15,6 +15,7 @@ type PriceService interface {
 	GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	Record(itemID uint, price float64, date string) (*model.PriceRecord, error)
 	GetHistory(itemID uint) ([]model.PriceRecord, error)
+	GetAllHistory(itemID uint) ([]model.PriceRecord, error)
 }
 
 type priceService struct {
@@ -189,4 +190,8 @@ func (svc *priceService) Record(itemID uint, price float64, date string) (*model
 
 func (svc *priceService) GetHistory(itemID uint) ([]model.PriceRecord, error) {
 	return svc.priceRepo.FindHistoryByItem(itemID, 30)
+}
+
+func (svc *priceService) GetAllHistory(itemID uint) ([]model.PriceRecord, error) {
+	return svc.priceRepo.FindHistoryByItem(itemID, -1)
 }

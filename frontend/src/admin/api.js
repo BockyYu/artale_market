@@ -105,6 +105,11 @@ export async function listItems(sortBy = '') {
   return handleResponse(res)
 }
 
+export async function getItemPrices(id) {
+  const res = await fetch(`${BASE}/items/${id}/prices`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
 export async function updateItemTrack(id, trackPriority) {
   const res = await fetch(`${BASE}/items/${id}/track`, {
     method: 'PATCH',

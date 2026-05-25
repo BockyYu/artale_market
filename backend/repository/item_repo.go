@@ -39,12 +39,12 @@ func (r *itemRepo) FindAll() ([]model.Item, error) {
 
 func (r *itemRepo) FindAllWithLatestPrice(sortBy string) ([]model.ItemAdminRow, error) {
 	var rows []model.ItemAdminRow
-	order := "items.name ASC"
+	order := "items.id ASC"
 	switch sortBy {
 	case "price_desc":
-		order = "latest_price DESC NULLS LAST, items.name ASC"
+		order = "latest_price DESC NULLS LAST, items.id ASC"
 	case "price_asc":
-		order = "latest_price ASC NULLS LAST, items.name ASC"
+		order = "latest_price ASC NULLS LAST, items.id ASC"
 	}
 	err := r.db.Model(&model.Item{}).
 		Select("items.*, (SELECT price FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price").
