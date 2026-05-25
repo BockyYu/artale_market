@@ -21,6 +21,9 @@ frontend/dist/
 .env
 .env.local
 backend/.env
+backend/.env.dev
+backend/.env.test
+backend/.env.prod
 
 # Claude Code
 .claude/
