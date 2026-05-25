@@ -8,9 +8,26 @@ import (
 	"artale_market/repository"
 	"artale_market/router"
 	"artale_market/service"
+
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "dev"
+	}
+	if err := godotenv.Load(fmt.Sprintf(".env.%s", env)); err != nil {
+		log.Printf("[Config] no .env.%s file found, using system environment", env)
+	}
+	log.Printf("[Config] running in %s mode", env)
+	if env == "dev" {
+		logConnInfo()
+	}
 	db  := config.NewDB()
 	rdb := config.NewRedis()
 
@@ -18,11 +35,12 @@ func main() {
 
 	enforcer := config.NewEnforcer(db)
 
-	itemRepo   := repository.NewItemRepository(db)
-	priceRepo  := repository.NewPriceRepository(db)
-	queryRepo  := repository.NewQueryRepository(rdb)
-	adminRepo  := repository.NewAdminRepository(db)
+	itemRepo       := repository.NewItemRepository(db)
+	priceRepo      := repository.NewPriceRepository(db)
+	queryRepo      := repository.NewQueryRepository(rdb)
+	adminRepo      := repository.NewAdminRepository(db)
 	memberRepo := repository.NewMemberRepository(db)
+	systemRepo := repository.NewSystemRepository(db)
 
 	itemSvc   := service.NewItemService(itemRepo, priceRepo)
 	priceSvc  := service.NewPriceService(itemRepo, priceRepo)
@@ -37,6 +55,7 @@ func main() {
 		Admin:      handler.NewAdminHandler(adminSvc),
 		Member:     handler.NewMemberHandler(memberSvc),
 		Permission: handler.NewPermissionHandler(enforcer, adminSvc),
+		System:     handler.NewSystemHandler(systemRepo),
 		Enforcer:   enforcer,
 	}
 
@@ -44,4 +63,19 @@ func main() {
 
 	log.Println("[Server] running on :8080")
 	r.Run(":8080")
+}
+
+func logConnInfo() {
+	dsn := os.Getenv("DATABASE_URL")
+	parts := strings.Fields(dsn)
+	safe := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if strings.HasPrefix(p, "password=") {
+			safe = append(safe, "password=****")
+		} else {
+			safe = append(safe, p)
+		}
+	}
+	log.Printf("[Config] DB  → %s", strings.Join(safe, " "))
+	log.Printf("[Config] Redis → %s", os.Getenv("REDIS_URL"))
 }

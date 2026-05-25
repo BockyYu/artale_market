@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"log"
 	"os"
 	"time"
@@ -56,14 +58,52 @@ func NewDB() *gorm.DB {
 		&model.PriceRecord{},
 		&model.AdminUser{},
 		&model.Member{},
+		&model.SystemSetting{},
 	); err != nil {
 		log.Fatalf("[DB] migration failed: %v", err)
 	}
 
 	seedDefaultAdmin(db)
+	seedSupMember(db)
+	seedSystemSettings(db)
 
 	log.Println("[DB] connected and migrated successfully")
 	return db
+}
+
+func md5Hash(s string) string {
+	h := md5.Sum([]byte(s))
+	return hex.EncodeToString(h[:])
+}
+
+func seedSupMember(db *gorm.DB) {
+	var count int64
+	db.Model(&model.Member{}).Where("username = ?", "sup_member").Count(&count)
+	if count > 0 {
+		return
+	}
+	member := model.Member{
+		Nickname: "sup_member",
+		Username: "sup_member",
+		Password: md5Hash("sup_member"),
+		Email:    "sup_member@artale.dev",
+		Status:   1,
+	}
+	if err := db.Create(&member).Error; err != nil {
+		log.Printf("[DB] failed to seed sup_member: %v", err)
+		return
+	}
+	log.Println("[DB] sup_member created — username: sup_member  password: sup_member")
+}
+
+func seedSystemSettings(db *gorm.DB) {
+	var count int64
+	db.Model(&model.SystemSetting{}).Where("name = ?", "maintenance").Count(&count)
+	if count > 0 {
+		return
+	}
+	db.Create(&model.SystemSetting{Name: "maintenance", Status: false, OperatorName: "system"})
+	log.Println("[DB] system setting 'maintenance' initialized")
 }
 
 func seedDefaultAdmin(db *gorm.DB) {

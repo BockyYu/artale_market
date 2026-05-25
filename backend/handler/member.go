@@ -43,7 +43,52 @@ func (h *MemberHandler) Login(c *gin.Context) {
 		respInternal(c, err)
 		return
 	}
-	respOK(c, gin.H{"token": tokenStr, "member": member})
+	respOK(c, gin.H{
+		"token":    tokenStr,
+		"id":       member.ID,
+		"nickname": member.Nickname,
+		"username": member.Username,
+		"email":    member.Email,
+		"status":   member.Status,
+	})
+}
+
+func (h *MemberHandler) Register(c *gin.Context) {
+	var req dto.RegisterReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	member, err := h.memberSvc.Register(req.Nickname, req.Username, req.Password, req.Email)
+
+	if err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	respOK(c, member)
+}
+
+func (h *MemberHandler) Logout(c *gin.Context) {
+	respOK(c, gin.H{"message": "logged out"})
+}
+
+func (h *MemberHandler) Me(c *gin.Context) {
+	idRaw, _ := c.Get("member_id")
+	id := uint(idRaw.(float64))
+	member, err := h.memberSvc.GetMe(id)
+	if err != nil {
+		respNotFound(c, err)
+		return
+	}
+	resp := gin.H{
+		"id":         member.ID,
+		"nickname":   member.Nickname,
+		"username":   member.Username,
+		"email":      member.Email,
+		"status":     member.Status,
+		"created_at": member.CreatedAt,
+	}
+	respOK(c, resp)
 }
 
 func (h *MemberHandler) List(c *gin.Context) {

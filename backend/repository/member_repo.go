@@ -8,6 +8,7 @@ import (
 
 type MemberRepository interface {
 	FindByUsername(username string) (*model.Member, error)
+	FindByEmail(email string) (*model.Member, error)
 	FindAll(page, pageSize int, search string) ([]model.Member, int64, error)
 	FindByID(id uint) (*model.Member, error)
 	Create(member *model.Member) error
@@ -26,6 +27,14 @@ func NewMemberRepository(db *gorm.DB) MemberRepository {
 func (r *memberRepository) FindByUsername(username string) (*model.Member, error) {
 	var member model.Member
 	if err := r.db.Where("username = ?", username).First(&member).Error; err != nil {
+		return nil, err
+	}
+	return &member, nil
+}
+
+func (r *memberRepository) FindByEmail(email string) (*model.Member, error) {
+	var member model.Member
+	if err := r.db.Where("email = ?", email).First(&member).Error; err != nil {
 		return nil, err
 	}
 	return &member, nil

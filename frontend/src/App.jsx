@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PotionTable from './PotionTable'
+import { getMemberInfo, memberLogout, memberLogin, memberFetch, fetchAppConfig } from './member-api'
 
-const SCROLL_API   = '/api/v1/scrolls/search'
-const SKILLBOOK_API = '/api/v1/skillbooks/search'
+const SCROLL_API    = '/api/v1/member/scrolls/search'
+const SKILLBOOK_API = '/api/v1/member/skillbooks/search'
 
 function getUserID() {
   let id = localStorage.getItem('artale_uid')
@@ -50,6 +52,9 @@ const JOB_GROUPS = [
 ]
 
 export default function App() {
+  const navigate = useNavigate()
+  const [member, setMember] = useState(getMemberInfo)
+  const [appConfig, setAppConfig] = useState(null)
   const [activeTab, setActiveTab] = useState('market')
   const [viewMode, setViewMode] = useState('scroll') // 'scroll' | 'skillbook'
   const [summary, setSummary] = useState([])
@@ -88,7 +93,7 @@ export default function App() {
 
   const fetchSummary = useCallback(async (date, pcts, categories, sortBy, page, pageSize) => {
     try {
-      const res = await fetch(SCROLL_API, {
+      const res = await memberFetch(SCROLL_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, percentage: pcts, category: categories.length === 0 ? ['scroll_all'] : categories, sort_by: sortBy, page, page_size: pageSize }),
@@ -104,7 +109,7 @@ export default function App() {
 
   const fetchAllItems = useCallback(async () => {
     try {
-      const res = await fetch('/api/member/items')
+      const res = await memberFetch('/api/v1/member/items')
       const result = await res.json()
       setAllItems(result || [])
     } catch {
@@ -115,7 +120,7 @@ export default function App() {
   const fetchSkillBooks = useCallback(async (job, date, sortBy, page, pageSize) => {
     try {
       const categories = job === ALL_SKILLBOOK_JOB ? [] : [job]
-      const res = await fetch(SKILLBOOK_API, {
+      const res = await memberFetch(SKILLBOOK_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, category: categories, sort_by: sortBy, page, page_size: pageSize }),
@@ -130,10 +135,16 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    fetchAllItems()
-  }, [fetchAllItems])
+    fetchAppConfig().then(setAppConfig)
+  }, [])
 
   useEffect(() => {
+    if (!appConfig || appConfig.maintenance) return
+    fetchAllItems()
+  }, [fetchAllItems, appConfig])
+
+  useEffect(() => {
+    if (!appConfig || appConfig.maintenance) return
     if (viewMode === 'scroll') {
       fetchSummary(filterDate, filterPct, filterCategories, sortBy, scrollPage, scrollPageSize)
     } else {
@@ -141,7 +152,7 @@ export default function App() {
     }
   }, [fetchSummary, fetchSkillBooks,
       filterDate, filterPct, filterCategories, sortBy, viewMode, selectedJob, skillBookSortBy,
-      scrollPage, scrollPageSize, skillBookPage, skillBookPageSize])
+      scrollPage, scrollPageSize, skillBookPage, skillBookPageSize, appConfig])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -160,7 +171,7 @@ export default function App() {
     if (items.length === 0) return
     const results = await Promise.all(items.map(async (item) => {
       try {
-        const res = await fetch(`/api/items/${item.id}/prices`)
+        const res = await memberFetch(`/api/v1/member/items/${item.id}/prices`)
         return await res.json()
       } catch {
         return { item_id: item.id, item_name: item.name, category: item.category }
@@ -346,27 +357,48 @@ export default function App() {
     year: 'numeric', month: 'long', day: 'numeric',
   })
 
+  if (!appConfig) return null
+
+  if (appConfig.maintenance) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 12 }}>
+      <h2>系統維護中</h2>
+      <p style={{ color: '#888' }}>{appConfig.message || 'We\'ll be back soon.'}</p>
+    </div>
+  )
+
   return (
     <div className="container">
+      {/* {!member && <LoginModal onLogin={setMember} />} */}
       <header className="header">
         <div className="header-left">
           <h1>🏪 Artale Market</h1>
           <span className="date-label">{today}</span>
         </div>
-        <nav className="tab-nav">
-          <button
-            className={`tab-btn ${activeTab === 'market' ? 'active' : ''}`}
-            onClick={() => setActiveTab('market')}
-          >
-            市場行情
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'potion' ? 'active' : ''}`}
-            onClick={() => setActiveTab('potion')}
-          >
-            藥水參考
-          </button>
-        </nav>
+        <div className="header-right">
+          <nav className="tab-nav">
+            <button
+              className={`tab-btn ${activeTab === 'market' ? 'active' : ''}`}
+              onClick={() => setActiveTab('market')}
+            >
+              市場行情
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'potion' ? 'active' : ''}`}
+              onClick={() => setActiveTab('potion')}
+            >
+              藥水參考
+            </button>
+          </nav>
+          {member ? (
+            <div className="member-bar">
+              <span className="member-nickname">{member.nickname}</span>
+              <button className="member-logout-btn" onClick={async () => {
+                await memberLogout()
+                setMember(null)
+              }}>登出</button>
+            </div>
+          ) : null}
+        </div>
       </header>
 
       {activeTab === 'potion' && <PotionTable />}
@@ -714,6 +746,62 @@ export default function App() {
         </div>{/* main-content */}
       </div>}{/* activeTab === 'market' */}
 
+    </div>
+  )
+}
+
+function LoginModal({ onLogin }) {
+  const [form, setForm] = useState({ username: '', password: '' })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const member = await memberLogin(form.username, form.password)
+      onLogin(member)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="login-modal-overlay">
+      <div className="login-modal-card">
+        <h2 className="login-modal-title">🏪 Artale Market</h2>
+        <p className="login-modal-sub">請登入以繼續使用</p>
+        {error && <div className="login-modal-error">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="login-modal-field">
+            <label>帳號</label>
+            <input
+              type="text"
+              value={form.username}
+              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+              placeholder="請輸入帳號"
+              autoFocus
+              required
+            />
+          </div>
+          <div className="login-modal-field">
+            <label>密碼</label>
+            <input
+              type="password"
+              value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              placeholder="請輸入密碼"
+              required
+            />
+          </div>
+          <button className="login-modal-btn" type="submit" disabled={loading}>
+            {loading ? '登入中...' : '登入'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

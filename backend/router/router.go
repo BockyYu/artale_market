@@ -16,6 +16,7 @@ type Deps struct {
 	Admin      *handler.AdminHandler
 	Member     *handler.MemberHandler
 	Permission *handler.PermissionHandler
+	System     *handler.SystemHandler
 	Enforcer   *casbin.Enforcer
 }
 
@@ -27,7 +28,8 @@ func Setup(deps *Deps) *gin.Engine {
 		AllowHeaders: []string{"Origin", "Content-Type", "X-User-ID", "Authorization"},
 	}))
 
-	registerMember(r.Group("/api"), deps)
+	registerScraper(r.Group("/api"), deps)
+	registerMemberV1(r.Group("/api/v1"), deps)
 	registerAdmin(r.Group("/api/admin"), deps)
 
 	return r

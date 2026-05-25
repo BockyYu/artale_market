@@ -1,5 +1,10 @@
 package dto
 
+type AdminLoginReq struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
 // CreateAdminReq 新增管理員請求
 type CreateAdminReq struct {
 	Username string `json:"username" binding:"required"` // 登入帳號

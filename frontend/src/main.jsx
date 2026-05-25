@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import App from './App.jsx'
+import MemberAuth from './MemberAuth.jsx'
 import Login from './admin/Login.jsx'
 import Layout from './admin/Layout.jsx'
 import Admins from './admin/Admins.jsx'
@@ -20,6 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Routes>
         {/* 前台 */}
         <Route path="/*" element={<App />} />
+        <Route path="/login" element={<MemberAuth />} />
 
         {/* 後台登入 */}
         <Route path="/admin/login" element={<Login />} />

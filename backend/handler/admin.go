@@ -21,7 +21,7 @@ func NewAdminHandler(adminSvc service.AdminService) *AdminHandler {
 }
 
 func (h *AdminHandler) Login(c *gin.Context) {
-	var req dto.LoginReq
+	var req dto.AdminLoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respBadRequest(c, errors.New("username and password required"))
 		return
