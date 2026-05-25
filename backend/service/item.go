@@ -10,6 +10,7 @@ import (
 
 type ItemService interface {
 	GetAll() ([]model.Item, error)
+	GetAllWithLatestPrice(sortBy string) ([]model.ItemAdminRow, error)
 	GetByID(id uint) (*model.Item, error)
 	GetPriceSummary(id uint) (*model.PriceSummary, error)
 	GetTracked(date string) ([]model.Item, error)
@@ -30,6 +31,10 @@ func NewItemService(ir repository.ItemRepository, pr repository.PriceRepository)
 
 func (s *itemService) GetAll() ([]model.Item, error) {
 	return s.itemRepo.FindAll()
+}
+
+func (s *itemService) GetAllWithLatestPrice(sortBy string) ([]model.ItemAdminRow, error) {
+	return s.itemRepo.FindAllWithLatestPrice(sortBy)
 }
 
 func (s *itemService) GetByID(id uint) (*model.Item, error) {

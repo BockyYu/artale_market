@@ -31,7 +31,6 @@ func main() {
 	db  := config.NewDB()
 	rdb := config.NewRedis()
 
-	config.SeedScrolls(db)
 
 	enforcer := config.NewEnforcer(db)
 

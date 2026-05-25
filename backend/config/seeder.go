@@ -73,4 +73,9 @@ func SeedScrolls(db *gorm.DB) {
 	if inserted == 0 && patched == 0 {
 		log.Println("[Seed] nothing to update")
 	}
+
+	// 確保 sequence 與實際最大 ID 同步，避免手動插入或 seed 造成的 primary key 衝突
+	if err := db.Exec("SELECT setval('items_id_seq', (SELECT MAX(id) FROM items))").Error; err != nil {
+		log.Printf("[Seed] failed to sync items_id_seq: %v", err)
+	}
 }

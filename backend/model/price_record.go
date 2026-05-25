@@ -31,7 +31,9 @@ type PriceSummary struct {
 	TodayPrice        *float64   `json:"today_price"          gorm:"column:today_price"`          // 今日價格，無記錄為 null
 	TodayCreatedAt    *time.Time `json:"today_created_at"     gorm:"column:today_created_at"`     // 今日首次記錄時間
 	TodayUpdatedAt    *time.Time `json:"today_updated_at"     gorm:"column:today_updated_at"`     // 今日最後更新時間
-	YesterdayPrice    *float64   `json:"yesterday_price"      gorm:"column:yesterday_price"`      // 昨日價格，無記錄為 null
-	ThreeDaysAgoPrice *float64   `json:"three_days_ago_price" gorm:"column:three_days_ago_price"` // 三天前價格，無記錄為 null
+	YesterdayPrice     *float64   `json:"yesterday_price"      gorm:"column:yesterday_price"`      // 昨日價格，無記錄為 null
+	YesterdayCreatedAt *time.Time `json:"yesterday_created_at" gorm:"column:yesterday_created_at"` // 昨日首次記錄時間
+	YesterdayUpdatedAt *time.Time `json:"yesterday_updated_at" gorm:"column:yesterday_updated_at"` // 昨日最後更新時間
+	ThreeDaysAgoPrice  *float64   `json:"three_days_ago_price" gorm:"column:three_days_ago_price"` // 三天前價格，無記錄為 null
 	ChangePercent     *float64   `json:"change_percent"       gorm:"-"`                           // 漲跌幅（%），由 service 層計算，不對應欄位
 }

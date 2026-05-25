@@ -27,6 +27,15 @@ func (h *ItemHandler) GetAll(c *gin.Context) {
 	respOK(c, items)
 }
 
+func (h *ItemHandler) AdminGetAll(c *gin.Context) {
+	items, err := h.svc.GetAllWithLatestPrice(c.Query("sort_by"))
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, items)
+}
+
 func (h *ItemHandler) Create(c *gin.Context) {
 	var item model.Item
 	if err := c.ShouldBindJSON(&item); err != nil {

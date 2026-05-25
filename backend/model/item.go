@@ -24,6 +24,12 @@ const (
 	TrackPriorityNotSeen   TrackPriority = 3 // 尚未出現
 )
 
+// ItemAdminRow 後台道具列表（含最新價格）
+type ItemAdminRow struct {
+	Item
+	LatestPrice *float64 `json:"latest_price" gorm:"column:latest_price"`
+}
+
 // Item 商品
 type Item struct {
 	ID            uint          `json:"id"             gorm:"primaryKey;autoIncrement"`

@@ -285,7 +285,7 @@ var scrollSeeds = []seedScroll{
 	{Name: "披風力量卷軸70%", Percentage: 70, Category: "披風", Description: "力量+2", ItemType: model.ItemTypeScroll},
 
 	// ── 耳環 ──
-	{Name: "耳環敏捷卷軸70%", Percentage: 70, Category: "耳環", Description: "敏捷+2", ItemType: model.ItemTypeScroll},
+	{Name: "耳環敏捷卷軸70%", Percentage: 70, Category: "耳環", Description: "敏捷+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 武器 ──
 	{Name: "單手劍攻擊力卷軸70%", Percentage: 70, Category: "單手劍", Description: "物攻+2 力量+1", ItemType: model.ItemTypeScroll},
@@ -299,8 +299,8 @@ var scrollSeeds = []seedScroll{
 	{Name: "短杖魔力卷軸70%", Percentage: 70, Category: "短杖", Description: "魔攻+2 智力+1", ItemType: model.ItemTypeScroll},
 	{Name: "弓攻擊力卷軸70%", Percentage: 70, Category: "弓", Description: "物攻+2 命中+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "弩攻擊力卷軸70%", Percentage: 70, Category: "弩", Description: "物攻+2 命中+1", ItemType: model.ItemTypeScroll},
-	{Name: "短劍攻擊力卷軸70%", Percentage: 70, Category: "短劍", Description: "物攻+2 幸運+1", ItemType: model.ItemTypeScroll},
-	{Name: "拳套攻擊力卷軸70%", Percentage: 70, Category: "拳套", Description: "物攻+2 命中+1", ItemType: model.ItemTypeScroll},
+	{Name: "短劍攻擊力卷軸70%", Percentage: 70, Category: "短劍", Description: "物攻+2 幸運+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "拳套攻擊力卷軸70%", Percentage: 70, Category: "拳套", Description: "物攻+2 命中+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "指虎攻擊力卷軸70%", Percentage: 70, Category: "指虎", Description: "物攻+2 力量+1", ItemType: model.ItemTypeScroll},
 	{Name: "火槍攻擊力卷軸70%", Percentage: 70, Category: "火槍", Description: "物攻+2 命中+1", ItemType: model.ItemTypeScroll},
 
@@ -309,8 +309,8 @@ var scrollSeeds = []seedScroll{
 	// ════════════════════════════════════════
 
 	// ── 頭盔 ──
-	{Name: "頭盔敏捷卷軸100%", Percentage: 100, Category: "頭盔", Description: "敏捷+1", ItemType: model.ItemTypeScroll},
-	{Name: "頭盔智力卷軸100%", Percentage: 100, Category: "頭盔", Description: "智力+1", ItemType: model.ItemTypeScroll},
+	{Name: "頭盔敏捷卷軸100%", Percentage: 100, Category: "頭盔", Description: "敏捷+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "頭盔智力卷軸100%", Percentage: 100, Category: "頭盔", Description: "智力+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "頭盔體力卷軸100%", Percentage: 100, Category: "頭盔", Description: "HP+5", ItemType: model.ItemTypeScroll},
 	{Name: "頭盔防禦力卷軸100%", Percentage: 100, Category: "頭盔", Description: "物防+1", ItemType: model.ItemTypeScroll},
 
@@ -367,7 +367,7 @@ var scrollSeeds = []seedScroll{
 	{Name: "眼部裝飾幸運卷軸100%", Percentage: 100, Category: "眼部裝飾", Description: "幸運+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 耳環 ──
-	{Name: "耳環敏捷卷軸100%", Percentage: 100, Category: "耳環", Description: "敏捷+1", ItemType: model.ItemTypeScroll},
+	{Name: "耳環敏捷卷軸100%", Percentage: 100, Category: "耳環", Description: "敏捷+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 	{Name: "耳環智力卷軸100%", Percentage: 100, Category: "耳環", Description: "魔攻+1", ItemType: model.ItemTypeScroll},
 	{Name: "耳環幸運卷軸100%", Percentage: 100, Category: "耳環", Description: "幸運+1", ItemType: model.ItemTypeScroll},
 	{Name: "耳環體力卷軸100%", Percentage: 100, Category: "耳環", Description: "HP+5", ItemType: model.ItemTypeScroll},

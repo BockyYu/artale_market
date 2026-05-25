@@ -31,5 +31,10 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 
 		// 後台新增價格（需要 price:write 權限）
 		auth.POST("/items/:id/prices", middleware.CasbinAuth(d.Enforcer, "price", "write"), d.Price.RecordPrice)
+
+		// 道具列表與查詢優先度管理
+		auth.GET("/items", d.Item.AdminGetAll)
+		auth.POST("/items", d.Item.Create)
+		auth.PATCH("/items/:id/track", d.Item.SetTracked)
 	}
 }

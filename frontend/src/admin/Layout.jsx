@@ -5,6 +5,7 @@ import './admin.css'
 const NAV = [
   { to: '/admin/admins', label: '管理員帳號' },
   { to: '/admin/members', label: '會員列表' },
+  { to: '/admin/items', label: '道具列表' },
 ]
 
 export default function Layout() {

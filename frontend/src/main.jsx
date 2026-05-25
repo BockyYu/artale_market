@@ -7,6 +7,7 @@ import Login from './admin/Login.jsx'
 import Layout from './admin/Layout.jsx'
 import Admins from './admin/Admins.jsx'
 import Members from './admin/Members.jsx'
+import Items from './admin/Items.jsx'
 import './App.css'
 
 function RequireAuth({ children }) {
@@ -38,6 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route index element={<Navigate to="admins" replace />} />
           <Route path="admins" element={<Admins />} />
           <Route path="members" element={<Members />} />
+          <Route path="items" element={<Items />} />
         </Route>
       </Routes>
     </BrowserRouter>

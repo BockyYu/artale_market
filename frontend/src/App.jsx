@@ -62,12 +62,6 @@ export default function App() {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
-  const localYesterday = () => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-  const [filterDate, setFilterDate] = useState(localToday)
   const [searchText, setSearchText] = useState('')
   const [filterPct, setFilterPct] = useState([])
   const [filterCategories, setFilterCategories] = useState([])
@@ -91,12 +85,12 @@ export default function App() {
   const [skillBookPageSize, setSkillBookPageSize] = useState(10)
   const [skillBookTotal, setSkillBookTotal] = useState(0)
 
-  const fetchSummary = useCallback(async (date, pcts, categories, sortBy, page, pageSize) => {
+  const fetchSummary = useCallback(async (pcts, categories, sortBy, page, pageSize) => {
     try {
       const res = await memberFetch(SCROLL_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, percentage: pcts, category: categories.length === 0 ? ['scroll_all'] : categories, sort_by: sortBy, page, page_size: pageSize }),
+        body: JSON.stringify({ date: localToday(), percentage: pcts, category: categories.length === 0 ? ['scroll_all'] : categories, sort_by: sortBy, page, page_size: pageSize }),
       })
       const result = await res.json()
       setSummary(result?.data || [])
@@ -117,13 +111,13 @@ export default function App() {
     }
   }, [])
 
-  const fetchSkillBooks = useCallback(async (job, date, sortBy, page, pageSize) => {
+  const fetchSkillBooks = useCallback(async (job, sortBy, page, pageSize) => {
     try {
       const categories = job === ALL_SKILLBOOK_JOB ? [] : [job]
       const res = await memberFetch(SKILLBOOK_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, category: categories, sort_by: sortBy, page, page_size: pageSize }),
+        body: JSON.stringify({ date: localToday(), category: categories, sort_by: sortBy, page, page_size: pageSize }),
       })
       const result = await res.json()
       setSkillBookItems(result?.data || [])
@@ -146,12 +140,12 @@ export default function App() {
   useEffect(() => {
     if (!appConfig || appConfig.maintenance) return
     if (viewMode === 'scroll') {
-      fetchSummary(filterDate, filterPct, filterCategories, sortBy, scrollPage, scrollPageSize)
+      fetchSummary(filterPct, filterCategories, sortBy, scrollPage, scrollPageSize)
     } else {
-      fetchSkillBooks(selectedJob, filterDate, skillBookSortBy, skillBookPage, skillBookPageSize)
+      fetchSkillBooks(selectedJob, skillBookSortBy, skillBookPage, skillBookPageSize)
     }
   }, [fetchSummary, fetchSkillBooks,
-      filterDate, filterPct, filterCategories, sortBy, viewMode, selectedJob, skillBookSortBy,
+      filterPct, filterCategories, sortBy, viewMode, selectedJob, skillBookSortBy,
       scrollPage, scrollPageSize, skillBookPage, skillBookPageSize, appConfig])
 
   useEffect(() => {
@@ -164,8 +158,8 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  useEffect(() => { setScrollPage(1) }, [filterPct, filterCategories, filterDate, sortBy, pinnedItems.length, scrollPageSize])
-  useEffect(() => { setSkillBookPage(1) }, [selectedJob, filterDate, skillBookSortBy, skillBookPageSize])
+  useEffect(() => { setScrollPage(1) }, [filterPct, filterCategories, sortBy, pinnedItems.length, scrollPageSize])
+  useEffect(() => { setSkillBookPage(1) }, [selectedJob, skillBookSortBy, skillBookPageSize])
 
   const fetchPinnedItemPrices = useCallback(async (items) => {
     if (items.length === 0) return
@@ -333,12 +327,6 @@ export default function App() {
       ],
     },
   ]
-
-  const daysAgo = (n) => {
-    const d = new Date()
-    d.setDate(d.getDate() - n)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
 
   const fmt = (price) =>
     price != null ? price.toLocaleString() : '—'
@@ -548,35 +536,6 @@ export default function App() {
                 )}
               </div>
             )}
-            <div className="date-filter">
-              <div className="quick-dates">
-                {[7, 14, 30].map((n) => {
-                  const d = daysAgo(n)
-                  return (
-                    <button
-                      key={n}
-                      className={`quick-date-btn ${filterDate === d ? 'active' : ''}`}
-                      onClick={() => setFilterDate(d)}
-                    >
-                      {n} 天前
-                    </button>
-                  )
-                })}
-                <button
-                  className={`quick-date-btn ${filterDate === localToday() ? 'active' : ''}`}
-                  onClick={() => setFilterDate(localToday())}
-                >
-                  今天
-                </button>
-              </div>
-              <input
-                type="date"
-                className="date-input"
-                value={filterDate}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setFilterDate(e.target.value)}
-              />
-            </div>
           </div>
 
           {viewMode === 'scroll' && pinnedItems.length > 0 && (
@@ -625,7 +584,6 @@ export default function App() {
                         </span>
                       </th>
                       <th>昨日</th>
-                      <th>三天前</th>
                       <th
                         className="sortable-th"
                         onClick={() => setSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
@@ -640,7 +598,7 @@ export default function App() {
                   <tbody>
                     {filteredSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="empty">
+                        <td colSpan={5} className="empty">
                           {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
                         </td>
                       </tr>
@@ -659,8 +617,14 @@ export default function App() {
                                 </div>
                               )}
                             </td>
-                            <td className="text-muted">{fmt(item.yesterday_price)}</td>
-                            <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
+                            <td className="text-muted">
+                              {fmt(item.yesterday_price)}
+                              {(item.yesterday_updated_at || item.yesterday_created_at) && (
+                                <div className="price-updated-at">
+                                  {new Date(item.yesterday_updated_at ?? item.yesterday_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              )}
+                            </td>
                             <td><ChangeCell pct={item.change_percent} /></td>
                           </tr>
                         ))
@@ -694,7 +658,6 @@ export default function App() {
                         </span>
                       </th>
                       <th>昨日</th>
-                      <th>三天前</th>
                       <th
                         className="sortable-th"
                         onClick={() => setSkillBookSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
@@ -709,7 +672,7 @@ export default function App() {
                   <tbody>
                     {sortedSkillBooks.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="empty">尚無資料</td>
+                        <td colSpan={5} className="empty">尚無資料</td>
                       </tr>
                     ) : (
                       sortedSkillBooks.map((item) => (
@@ -724,8 +687,14 @@ export default function App() {
                                 </div>
                               )}
                             </td>
-                            <td className="text-muted">{fmt(item.yesterday_price)}</td>
-                            <td className="text-muted">{fmt(item.three_days_ago_price)}</td>
+                            <td className="text-muted">
+                              {fmt(item.yesterday_price)}
+                              {(item.yesterday_updated_at || item.yesterday_created_at) && (
+                                <div className="price-updated-at">
+                                  {new Date(item.yesterday_updated_at ?? item.yesterday_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              )}
+                            </td>
                             <td><ChangeCell pct={item.change_percent} /></td>
                           </tr>
                         ))

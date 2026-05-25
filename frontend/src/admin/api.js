@@ -1,4 +1,4 @@
-const BASE = '/api/admin'
+const BASE = '/api/v1/admin'
 
 function getToken() {
   return localStorage.getItem('admin_token')
@@ -85,6 +85,31 @@ export async function updatePermissions(adminId, perms) {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(perms),
+  })
+  return handleResponse(res)
+}
+
+// Items
+export async function createItem(data) {
+  const res = await fetch(`${BASE}/items`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse(res)
+}
+
+export async function listItems(sortBy = '') {
+  const params = sortBy ? `?sort_by=${sortBy}` : ''
+  const res = await fetch(`${BASE}/items${params}`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
+export async function updateItemTrack(id, trackPriority) {
+  const res = await fetch(`${BASE}/items/${id}/track`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ track_priority: trackPriority }),
   })
   return handleResponse(res)
 }

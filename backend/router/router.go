@@ -30,7 +30,7 @@ func Setup(deps *Deps) *gin.Engine {
 
 	registerScraper(r.Group("/api"), deps)
 	registerMemberV1(r.Group("/api/v1"), deps)
-	registerAdmin(r.Group("/api/admin"), deps)
+	registerAdmin(r.Group("/api/v1/admin"), deps)
 
 	return r
 }
