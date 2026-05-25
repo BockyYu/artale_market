@@ -200,7 +200,7 @@ export default function Admins() {
             {permError && <div className="error-msg">{permError}</div>}
 
             {isSuperadmin(permModal) ? (
-              <p style={{ color: '#6b7280', fontSize: 14, margin: '12px 0 20px' }}>
+              <p style={{ color: '#374151', fontSize: 14, fontWeight: 500, margin: '12px 0 20px' }}>
                 superadmin 擁有所有權限，無法個別調整。
               </p>
             ) : (

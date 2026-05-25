@@ -58,7 +58,7 @@ export default function Members() {
     <>
       <div className="page-header">
         <h1>會員列表</h1>
-        <span style={{ fontSize: 13, color: '#6b7280' }}>共 {data.total} 位會員</span>
+        <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>共 {data.total} 位會員</span>
       </div>
 
       <div className="card">

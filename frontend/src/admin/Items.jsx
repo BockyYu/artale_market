@@ -122,7 +122,7 @@ export default function Items() {
       <div className="page-header">
         <h1>道具列表</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, color: '#6b7280' }}>共 {filtered.length} / {items.length} 筆</span>
+          <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>共 {filtered.length} / {items.length} 筆</span>
           <button className="btn-add" onClick={() => { setForm(EMPTY_FORM); setShowCreate(true) }}>+ 新增商品</button>
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function Items() {
                 <td className="text-bold">{item.name}</td>
                 <td>{item.category}</td>
                 <td>{ITEM_TYPE_LABEL[item.item_type] ?? item.item_type}</td>
-                <td className={item.latest_price != null ? 'text-price' : 'text-muted'}>
+                <td style={{ color: item.latest_price != null ? '#16a34a' : '#9ca3af', fontWeight: item.latest_price != null ? 700 : 400 }}>
                   {item.latest_price != null ? item.latest_price.toLocaleString() : '—'}
                 </td>
                 <td>
@@ -232,20 +232,20 @@ export default function Items() {
       </div>
       {historyItem && (
         <div className="modal-overlay" onClick={() => setHistoryItem(null)}>
-          <div className="modal" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
+          <div className="modal" style={{ width: '50vw', maxWidth: 675 }} onClick={e => e.stopPropagation()}>
             <h2>{historyItem.name} — 歷史價格</h2>
             {historyLoading ? (
               <p style={{ color: '#6b7280', fontSize: 14 }}>載入中...</p>
             ) : historyRecords.length === 0 ? (
               <p style={{ color: '#9ca3af', fontSize: 14 }}>尚無價格記錄</p>
             ) : (
-              <div style={{ maxHeight: 400, overflowY: 'auto', marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 8 }}>
+              <div style={{ maxHeight: 400, overflowY: 'auto', overflowX: 'hidden', marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 8 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#6b7280', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>日期</th>
-                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#6b7280', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>價格</th>
-                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#6b7280', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>更新時間</th>
+                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>日期</th>
+                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>價格</th>
+                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>更新時間</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -253,7 +253,7 @@ export default function Items() {
                       <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
                         <td style={{ padding: '10px 14px', fontSize: 14, color: '#374151' }}>{new Date(r.recorded_date).toLocaleDateString('zh-TW')}</td>
                         <td style={{ padding: '10px 14px', fontSize: 14, color: '#16a34a', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#6b7280' }}>{new Date(r.updated_at).toLocaleString('zh-TW')}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 13, color: '#374151', fontWeight: 500 }}>{(() => { const d = new Date(r.updated_at); return d.getFullYear() < 2000 ? '—' : d.toLocaleString('zh-TW') })()}</td>
                       </tr>
                     ))}
                   </tbody>
