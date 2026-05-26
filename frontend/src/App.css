@@ -4,6 +4,10 @@
   padding: 0;
 }
 
+html {
+  font-size: 18px;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #f0f2f5;
@@ -12,9 +16,9 @@ body {
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
-  padding: 28px 24px;
+  padding: 28px 32px;
 }
 
 /* ── Header ── */
@@ -232,7 +236,7 @@ body {
 .container th {
   padding: 13px 16px;
   text-align: left;
-  font-size: 0.83rem;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -240,7 +244,7 @@ body {
 
 .container td {
   padding: 12px 16px;
-  font-size: 0.9rem;
+  font-size: 20px;
   border-bottom: 1px solid #f0f0f5;
 }
 
@@ -620,7 +624,7 @@ body {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 220px;
+  width: 320px;
   flex-shrink: 0;
   background: #fff;
   border-radius: 12px;
@@ -636,7 +640,7 @@ body {
 }
 
 .sidebar-title {
-  font-size: 0.75rem;
+  font-size: 20px;
   font-weight: 700;
   color: #444;
   text-align: center;
@@ -660,7 +664,7 @@ body {
   padding: 6px 2px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  font-size: 0.75rem;
+  font-size: 20px;
   font-weight: 700;
   cursor: pointer;
   background: #fafafa;
@@ -693,7 +697,7 @@ body {
 }
 
 .sidebar-group-label {
-  font-size: 0.7rem;
+  font-size: 20px;
   font-weight: 700;
   color: #666;
   text-align: center;
@@ -713,7 +717,7 @@ body {
   padding: 5px 2px;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
-  font-size: 0.72rem;
+  font-size: 20px;
   font-weight: 600;
   cursor: pointer;
   background: #fafafa;
@@ -738,12 +742,12 @@ body {
   display: block;
   width: 100%;
   margin-bottom: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
+  padding: 8px 12px;
+  font-size: 18px;
   background: #fce4ec;
   color: #c62828;
-  border: 1px solid #ef9a9a;
-  border-radius: 6px;
+  border: 2px solid #ef9a9a;
+  border-radius: 8px;
   cursor: pointer;
   text-align: center;
 }
@@ -757,7 +761,7 @@ body {
   padding: 8px 12px;
   border: 1.5px solid #9fa8da;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 20px;
   font-weight: 600;
   cursor: pointer;
   background: #f3f4fd;

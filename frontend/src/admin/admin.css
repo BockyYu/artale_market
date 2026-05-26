@@ -210,7 +210,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
   color: #111827;
   border-top: 1px solid #f3f4f6;
 }
-.admin-layout tr:hover td { background: #fafafa; }
+.admin-layout tbody tr:nth-child(even) td { background: #dde2ec; }
+.admin-layout tbody tr:nth-child(odd) td { background: #ffffff; }
+.admin-layout tr:hover td { background: #eef0f9 !important; }
 
 /* ── Badges ── */
 .badge {

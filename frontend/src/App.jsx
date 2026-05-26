@@ -77,7 +77,7 @@ export default function App() {
 
   const [selectedJob, setSelectedJob] = useState(ALL_SKILLBOOK_JOB)
   const [skillBookItems, setSkillBookItems] = useState([])
-  const [skillBookSortBy, setSkillBookSortBy] = useState('percentage_asc')
+  const [skillBookSortBy, setSkillBookSortBy] = useState('price_desc')
 
   const [scrollPage, setScrollPage] = useState(1)
   const [scrollPageSize, setScrollPageSize] = useState(10)
@@ -293,7 +293,7 @@ export default function App() {
       label: '防具',
       cols: 5,
       items: [
-        { label: '帽',   value: '頭盔' },
+        { label: '頭盔', value: '頭盔' },
         { label: '上衣', value: '上衣' },
         { label: '下衣', value: '下衣' },
         { label: '套服', value: '套服' },

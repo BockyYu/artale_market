@@ -148,8 +148,8 @@ export default function Admins() {
 
       {/* 編輯 Modal */}
       {modal && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal">
             <h2>{modal === 'create' ? '新增管理員' : '編輯管理員'}</h2>
             {formError && <div className="error-msg">{formError}</div>}
             <div className="form-group">

@@ -54,6 +54,9 @@ func (h *PriceHandler) GetSkillBookSummary(c *gin.Context) {
 	if body.Page < 1 {
 		body.Page = 1
 	}
+	if body.SortBy == "" {
+		body.SortBy = "price_desc"
+	}
 
 	result, err := h.svc.GetSkillBookSummary(body.Date, body.Category, body.SortBy, body.Page, body.PageSize)
 	if err != nil {
