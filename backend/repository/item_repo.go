@@ -10,7 +10,7 @@ import (
 
 type ItemRepository interface {
 	FindAll() ([]model.Item, error)
-	FindAllWithLatestPrice(sortBy string) ([]model.ItemAdminRow, error)
+	FindAllWithLatestPrice(sortBy, search string, filterType, filterPriority, page, pageSize int) ([]model.ItemAdminRow, int64, error)
 	FindWithFilters(pcts []int, categories []string) ([]model.Item, error)
 	FindPage(pcts []int, categories []string, itemTypes []int, sortBy string, date string, page, pageSize int) ([]model.Item, int64, error)
 	FindScrollPage(pcts []int, categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
@@ -37,20 +37,55 @@ func (r *itemRepo) FindAll() ([]model.Item, error) {
 	return items, err
 }
 
-func (r *itemRepo) FindAllWithLatestPrice(sortBy string) ([]model.ItemAdminRow, error) {
+func (r *itemRepo) applyAdminFilters(q *gorm.DB, search string, filterType, filterPriority int) *gorm.DB {
+	if search != "" {
+		q = q.Where("items.name ILIKE ? OR items.category ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+	if filterType > 0 {
+		q = q.Where("items.item_type = ?", filterType)
+	}
+	if filterPriority >= 0 {
+		q = q.Where("items.track_priority = ?", filterPriority)
+	}
+	return q
+}
+
+func (r *itemRepo) FindAllWithLatestPrice(sortBy, search string, filterType, filterPriority, page, pageSize int) ([]model.ItemAdminRow, int64, error) {
 	var rows []model.ItemAdminRow
+	var total int64
+
 	order := "items.id ASC"
 	switch sortBy {
+	case "id_desc":
+		order = "items.id DESC"
 	case "price_desc":
 		order = "latest_price DESC NULLS LAST, items.id ASC"
 	case "price_asc":
 		order = "latest_price ASC NULLS LAST, items.id ASC"
+	case "changes_desc":
+		order = "today_changes DESC NULLS LAST, items.id ASC"
+	case "changes_asc":
+		order = "today_changes ASC NULLS LAST, items.id ASC"
 	}
-	err := r.db.Model(&model.Item{}).
-		Select("items.*, (SELECT price FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price").
-		Order(order).
-		Scan(&rows).Error
-	return rows, err
+
+	if err := r.applyAdminFilters(r.db.Model(&model.Item{}), search, filterType, filterPriority).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	today := time.Now().Format("2006-01-02")
+	q := r.applyAdminFilters(r.db.Model(&model.Item{}), search, filterType, filterPriority).
+		Select("items.*, " +
+			"(SELECT price FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price, " +
+			"(SELECT COALESCE(NULLIF(updated_at, '0001-01-01'), created_at) FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price_at, " +
+			"(SELECT COUNT(*) FROM price_histories WHERE item_id = items.id AND DATE(recorded_at) = '" + today + "') AS today_changes").
+		Order(order)
+
+	if pageSize > 0 {
+		q = q.Offset((page - 1) * pageSize).Limit(pageSize)
+	}
+
+	return rows, total, q.Scan(&rows).Error
 }
 
 func (r *itemRepo) FindWithFilters(pcts []int, categories []string) ([]model.Item, error) {

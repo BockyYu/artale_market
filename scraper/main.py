@@ -39,21 +39,18 @@ def run(dry_run: bool = False) -> None:
     logger.info(f"開始抓取{'（模擬模式）' if dry_run else ''}")
     logger.info("=" * 50)
 
-    # 1. 確認遊戲視窗
     try:
         win = get_game_window()
     except RuntimeError as e:
         logger.error(str(e))
         return
 
-    # 2. 偵測介面元素（搜尋框 + 每個價錢欄位），找不到直接中止
     try:
         verify_price_header(win)
     except RuntimeError as e:
         logger.error(f"前置檢查失敗：{e}")
         return
 
-    # 3. 從後端取得商品列表
     try:
         items = fetch_items()
     except Exception as e:

@@ -5,14 +5,16 @@ SCRAPER_USER_ID = "scraper-bot"
 
 
 def fetch_items() -> list[dict]:
-    """取得所有標記為每日追蹤的商品。"""
-    r = requests.get(f"{API_BASE_URL}/api/items/tracked", timeout=10)
+    """取得所有 track_priority 1 或 2 的商品（不管今天有沒有價格）。
+    後端 POST /api/items/:id/prices 會自動判斷 create 或 update。
+    """
+    r = requests.get(f"{API_BASE_URL}/api/items", timeout=10)
     r.raise_for_status()
     data = r.json()
     if not isinstance(data, list):
         return []
-    # 統一欄位名稱供 main.py 使用
-    return [{"item_id": item["id"], "item_name": item["name"], "item_type": item.get("item_type", 1)} for item in data]
+    tracked = [i for i in data if 0 < i.get("track_priority", 0) < 3]
+    return [{"item_id": i["id"], "item_name": i["name"], "item_type": i.get("item_type", 1)} for i in tracked]
 
 
 def record_price(item_id: int, price: int) -> bool:

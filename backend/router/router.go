@@ -28,7 +28,7 @@ func Setup(deps *Deps) *gin.Engine {
 		AllowHeaders: []string{"Origin", "Content-Type", "X-User-ID", "Authorization"},
 	}))
 
-	registerScraper(r.Group("/api"), deps)
+	registerTools(r.Group("/api"), deps)
 	registerMemberV1(r.Group("/api/v1"), deps)
 	registerAdmin(r.Group("/api/v1/admin"), deps)
 

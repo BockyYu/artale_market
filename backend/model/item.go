@@ -25,10 +25,21 @@ const (
 	TrackPriorityNotSeen   TrackPriority = 3 // 尚未出現
 )
 
-// ItemAdminRow 後台道具列表（含最新價格）
+// ItemAdminRow 後台道具列表（含最新價格與今日統計）
 type ItemAdminRow struct {
 	Item
-	LatestPrice *float64 `json:"latest_price" gorm:"column:latest_price"`
+	LatestPrice   *float64   `json:"latest_price"    gorm:"column:latest_price"`
+	LatestPriceAt *time.Time `json:"latest_price_at" gorm:"column:latest_price_at"`
+	TodayChanges  int        `json:"today_changes"   gorm:"column:today_changes"`
+	TodayViews    int        `json:"today_views"     gorm:"-"`
+}
+
+// AdminItemPage 後台道具分頁回傳
+type AdminItemPage struct {
+	Data     []ItemAdminRow `json:"data"`
+	Total    int64          `json:"total"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"page_size"`
 }
 
 // Item 商品

@@ -99,14 +99,41 @@ export async function createItem(data) {
   return handleResponse(res)
 }
 
-export async function listItems(sortBy = '') {
-  const params = sortBy ? `?sort_by=${sortBy}` : ''
-  const res = await fetch(`${BASE}/items${params}`, { headers: authHeaders() })
+export async function listItems({ sortBy = '', search = '', filterType = 0, filterPriority = -1, page = 1, pageSize = 20 } = {}) {
+  const params = new URLSearchParams({ page, page_size: pageSize })
+  if (sortBy) params.set('sort_by', sortBy)
+  if (search) params.set('search', search)
+  if (filterType > 0) params.set('filter_type', filterType)
+  if (filterPriority >= 0) params.set('filter_priority', filterPriority)
+  const res = await fetch(`${BASE}/items?${params}`, { headers: authHeaders() })
   return handleResponse(res)
 }
 
 export async function getItemPrices(id) {
   const res = await fetch(`${BASE}/items/${id}/prices`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
+export async function getItemHistories(id) {
+  const res = await fetch(`${BASE}/items/${id}/histories`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
+export async function updateItem(id, data) {
+  const res = await fetch(`${BASE}/items/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse(res)
+}
+
+export async function recordItemPrice(id, price) {
+  const res = await fetch(`${BASE}/items/${id}/prices`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ price }),
+  })
   return handleResponse(res)
 }
 

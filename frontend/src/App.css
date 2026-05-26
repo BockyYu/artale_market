@@ -648,7 +648,7 @@ body {
 
 .pct-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
 }
 
@@ -657,16 +657,16 @@ body {
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 7px 4px;
+  padding: 6px 2px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
   background: #fafafa;
   color: #555;
   transition: all 0.15s;
-  white-space: nowrap;
+  overflow: hidden;
 }
 
 .pct-filter-btn:hover:not(.disabled) {

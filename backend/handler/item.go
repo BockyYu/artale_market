@@ -1,21 +1,24 @@
 package handler
 
 import (
+	"strconv"
 	"time"
 
 	"artale_market/dto"
 	"artale_market/model"
+	"artale_market/repository"
 	"artale_market/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type ItemHandler struct {
-	svc service.ItemService
+	svc       service.ItemService
+	queryRepo repository.QueryRepository
 }
 
-func NewItemHandler(svc service.ItemService) *ItemHandler {
-	return &ItemHandler{svc: svc}
+func NewItemHandler(svc service.ItemService, qr repository.QueryRepository) *ItemHandler {
+	return &ItemHandler{svc: svc, queryRepo: qr}
 }
 
 func (h *ItemHandler) GetAll(c *gin.Context) {
@@ -28,12 +31,22 @@ func (h *ItemHandler) GetAll(c *gin.Context) {
 }
 
 func (h *ItemHandler) AdminGetAll(c *gin.Context) {
-	items, err := h.svc.GetAllWithLatestPrice(c.Query("sort_by"))
+	sortBy := c.Query("sort_by")
+	search := c.Query("search")
+	filterType, _ := strconv.Atoi(c.DefaultQuery("filter_type", "0"))
+	filterPriority, _ := strconv.Atoi(c.DefaultQuery("filter_priority", "-1"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+
+	result, err := h.svc.GetAllWithLatestPrice(sortBy, search, filterType, filterPriority, page, pageSize)
 	if err != nil {
 		respInternal(c, err)
 		return
 	}
-	respOK(c, items)
+	respOK(c, result)
 }
 
 func (h *ItemHandler) Create(c *gin.Context) {
@@ -55,7 +68,7 @@ func (h *ItemHandler) Update(c *gin.Context) {
 		respBadRequest(c, err)
 		return
 	}
-	item, err := h.svc.Update(parseID(c), input.Name, input.Percentage, input.Category, input.Description)
+	item, err := h.svc.Update(parseID(c), input.Name, input.ItemType, input.Percentage, input.Category, input.Description)
 	if err != nil {
 		respNotFound(c, err)
 		return
@@ -72,11 +85,14 @@ func (h *ItemHandler) Delete(c *gin.Context) {
 }
 
 func (h *ItemHandler) GetByID(c *gin.Context) {
-	summary, err := h.svc.GetPriceSummary(parseID(c))
+	id := parseID(c)
+	summary, err := h.svc.GetPriceSummary(id)
 	if err != nil {
 		respNotFound(c, err)
 		return
 	}
+	today := time.Now().Format("2006-01-02")
+	go func() { _ = h.queryRepo.RecordItemView(id, today) }()
 	respOK(c, summary)
 }
 

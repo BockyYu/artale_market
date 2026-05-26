@@ -13,18 +13,20 @@ type PriceService interface {
 	GetSummary(date string, pcts []int, categories []string, itemTypes []int, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	GetScrollSummary(date string, pcts []int, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
-	Record(itemID uint, price float64, date string) (*model.PriceRecord, error)
+	Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error)
 	GetHistory(itemID uint) ([]model.PriceRecord, error)
 	GetAllHistory(itemID uint) ([]model.PriceRecord, error)
+	GetPriceHistories(itemID uint) ([]model.PriceHistory, error)
 }
 
 type priceService struct {
-	itemRepo  repository.ItemRepository
-	priceRepo repository.PriceRepository
+	itemRepo    repository.ItemRepository
+	priceRepo   repository.PriceRepository
+	historyRepo repository.PriceHistoryRepository
 }
 
-func NewPriceService(ir repository.ItemRepository, pr repository.PriceRepository) PriceService {
-	return &priceService{itemRepo: ir, priceRepo: pr}
+func NewPriceService(ir repository.ItemRepository, pr repository.PriceRepository, hr repository.PriceHistoryRepository) PriceService {
+	return &priceService{itemRepo: ir, priceRepo: pr, historyRepo: hr}
 }
 
 func (svc *priceService) GetSummary(date string, pcts []int, categories []string, itemTypes []int, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
@@ -161,7 +163,7 @@ func (svc *priceService) GetSkillBookSummary(date string, categories []string, s
 	}, nil
 }
 
-func (svc *priceService) Record(itemID uint, price float64, date string) (*model.PriceRecord, error) {
+func (svc *priceService) Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error) {
 	if _, err := svc.itemRepo.FindByID(itemID); err != nil {
 		return nil, err
 	}
@@ -178,6 +180,7 @@ func (svc *priceService) Record(itemID uint, price float64, date string) (*model
 		if err := svc.priceRepo.Create(record); err != nil {
 			return nil, err
 		}
+		_ = svc.historyRepo.Create(&model.PriceHistory{ItemID: itemID, Price: price, Source: source})
 		return record, nil
 	}
 
@@ -185,7 +188,13 @@ func (svc *priceService) Record(itemID uint, price float64, date string) (*model
 		return nil, err
 	}
 	existing.Price = price
+	existing.UpdatedAt = time.Now()
+	_ = svc.historyRepo.Create(&model.PriceHistory{ItemID: itemID, Price: price, Source: source})
 	return existing, nil
+}
+
+func (svc *priceService) GetPriceHistories(itemID uint) ([]model.PriceHistory, error) {
+	return svc.historyRepo.FindByItem(itemID)
 }
 
 func (svc *priceService) GetHistory(itemID uint) ([]model.PriceRecord, error) {

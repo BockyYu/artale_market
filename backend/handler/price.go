@@ -77,8 +77,13 @@ func (h *PriceHandler) RecordPrice(c *gin.Context) {
 		return
 	}
 
+	source := "scraper"
+	if c.GetHeader("Authorization") != "" {
+		source = "admin"
+	}
+
 	itemID := parseID(c)
-	record, err := h.svc.Record(itemID, input.Price, input.Date)
+	record, err := h.svc.Record(itemID, input.Price, input.Date, source)
 	if err != nil {
 		respNotFound(c, err)
 		return
@@ -102,6 +107,15 @@ func (h *PriceHandler) GetHistory(c *gin.Context) {
 
 func (h *PriceHandler) AdminGetHistory(c *gin.Context) {
 	records, err := h.svc.GetAllHistory(parseID(c))
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, records)
+}
+
+func (h *PriceHandler) AdminGetPriceHistories(c *gin.Context) {
+	records, err := h.svc.GetPriceHistories(parseID(c))
 	if err != nil {
 		respInternal(c, err)
 		return

@@ -35,7 +35,9 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		// 道具列表與查詢優先度管理
 		auth.GET("/items", d.Item.AdminGetAll)
 		auth.POST("/items", d.Item.Create)
+		auth.PUT("/items/:id", d.Item.Update)
 		auth.PATCH("/items/:id/track", d.Item.SetTracked)
 		auth.GET("/items/:id/prices", d.Price.AdminGetHistory)
+		auth.GET("/items/:id/histories", d.Price.AdminGetPriceHistories)
 	}
 }

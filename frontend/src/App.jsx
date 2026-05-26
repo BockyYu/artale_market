@@ -284,7 +284,7 @@ export default function App() {
   const CATEGORY_GROUPS = [
     {
       label: '防具',
-      cols: 6,
+      cols: 5,
       items: [
         { label: '帽',   value: '頭盔' },
         { label: '上衣', value: '上衣' },

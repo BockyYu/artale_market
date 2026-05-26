@@ -56,6 +56,7 @@ func NewDB() *gorm.DB {
 	if err := db.AutoMigrate(
 		&model.Item{},
 		&model.PriceRecord{},
+		&model.PriceHistory{},
 		&model.AdminUser{},
 		&model.Member{},
 		&model.SystemSetting{},

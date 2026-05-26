@@ -4,10 +4,11 @@ import "artale_market/model"
 
 // UpdateItemReq 更新商品資訊請求
 type UpdateItemReq struct {
-	Name        string `json:"name"        binding:"required"`              // 商品名稱
-	Percentage  int    `json:"percentage"  binding:"required,min=1,max=100"` // 卷軸成功率（1-100）
-	Category    string `json:"category"    binding:"required"`              // 分類
-	Description string `json:"description"`                                 // 備註（選填）
+	Name        string           `json:"name"        binding:"required"` // 商品名稱
+	ItemType    model.ItemType   `json:"item_type"   binding:"required"` // 商品類型
+	Percentage  int              `json:"percentage"  binding:"min=0,max=100"` // 卷軸成功率（0=無，1-100）
+	Category    string           `json:"category"    binding:"required"` // 分類
+	Description string           `json:"description"` // 備註（選填）
 }
 
 // SetTrackedReq 設定追蹤優先等級請求

@@ -34,21 +34,22 @@ func main() {
 
 	enforcer := config.NewEnforcer(db)
 
-	itemRepo       := repository.NewItemRepository(db)
-	priceRepo      := repository.NewPriceRepository(db)
-	queryRepo      := repository.NewQueryRepository(rdb)
-	adminRepo      := repository.NewAdminRepository(db)
-	memberRepo := repository.NewMemberRepository(db)
-	systemRepo := repository.NewSystemRepository(db)
+	itemRepo        := repository.NewItemRepository(db)
+	priceRepo       := repository.NewPriceRepository(db)
+	priceHistoryRepo := repository.NewPriceHistoryRepository(db)
+	queryRepo       := repository.NewQueryRepository(rdb)
+	adminRepo       := repository.NewAdminRepository(db)
+	memberRepo      := repository.NewMemberRepository(db)
+	systemRepo      := repository.NewSystemRepository(db)
 
-	itemSvc   := service.NewItemService(itemRepo, priceRepo)
-	priceSvc  := service.NewPriceService(itemRepo, priceRepo)
+	itemSvc   := service.NewItemService(itemRepo, priceRepo, queryRepo)
+	priceSvc  := service.NewPriceService(itemRepo, priceRepo, priceHistoryRepo)
 	querySvc  := service.NewQueryService(queryRepo, itemRepo)
 	adminSvc  := service.NewAdminService(adminRepo)
 	memberSvc := service.NewMemberService(memberRepo)
 
 	deps := &router.Deps{
-		Item:       handler.NewItemHandler(itemSvc),
+		Item:       handler.NewItemHandler(itemSvc, queryRepo),
 		Price:      handler.NewPriceHandler(priceSvc, querySvc),
 		Query:      handler.NewQueryHandler(querySvc),
 		Admin:      handler.NewAdminHandler(adminSvc),
