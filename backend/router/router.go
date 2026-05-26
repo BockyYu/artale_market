@@ -48,9 +48,10 @@ func Setup(deps *Deps) *gin.Engine {
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
 			for _, allowed := range origins {
-				if strings.HasPrefix(allowed, "*.") {
-					// 萬用字元子域名：*.example.com 匹配 foo.example.com
-					if strings.HasSuffix(origin, allowed[1:]) {
+				if strings.Contains(allowed, "*") {
+					// 萬用字元：https://*.example.com 匹配 https://foo.example.com
+					parts := strings.SplitN(allowed, "*", 2)
+					if strings.HasPrefix(origin, parts[0]) && strings.HasSuffix(origin, parts[1]) {
 						return true
 					}
 				} else if allowed == origin {
