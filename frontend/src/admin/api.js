@@ -1,4 +1,5 @@
-const BASE = '/api/v1/admin'
+const API_BASE = import.meta.env.VITE_API_BASE || ''
+const BASE = `${API_BASE}/api/v1/admin`
 
 function getToken() {
   return localStorage.getItem('admin_token')

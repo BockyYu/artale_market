@@ -1,7 +1,9 @@
-const BASE = '/api/v1/member'
+const API_BASE = import.meta.env.VITE_API_BASE || ''
+const BASE = `${API_BASE}/api/v1/member`
+
 export async function fetchAppConfig() {
   try {
-    const res = await fetch('/api/v1/system')
+    const res = await fetch(`${API_BASE}/api/v1/system`)
     if (!res.ok) return { maintenance: true, mode: 'prod', message: '' }
     const data = await res.json()
     return { maintenance: data.enabled, mode: data.mode || 'test', message: data.message || '' }
@@ -11,10 +13,11 @@ export async function fetchAppConfig() {
 }
 
 export function memberFetch(url, options = {}) {
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`
   const token = localStorage.getItem('member_token')
   const headers = { ...(options.headers || {}) }
   if (token) headers['Authorization'] = `Bearer ${token}`
-  return fetch(url, { ...options, headers })
+  return fetch(fullUrl, { ...options, headers })
 }
 
 export async function memberLogin(username, password) {

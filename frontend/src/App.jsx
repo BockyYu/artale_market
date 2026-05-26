@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PotionTable from './PotionTable'
+import Portfolio from './Portfolio'
 import { getMemberInfo, memberLogout, memberLogin, memberFetch, fetchAppConfig } from './member-api'
 
 const SCROLL_API    = '/api/v1/member/scrolls/search'
@@ -186,10 +187,16 @@ export default function App() {
     fetchPinnedItemPrices(added)
   }, [pinnedItems, fetchPinnedItemPrices])
 
+  function buildSearchRegex(keyword) {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const pattern = escaped.replace(/(\d+)/g, '$1(?!\\d)')
+    return new RegExp(pattern, 'i')
+  }
+
   const suggestions = searchText.trim().length > 0
     ? [...new Set(
         allItems
-          .filter(item => item.name.toLowerCase().includes(searchText.trim().toLowerCase()))
+          .filter(item => buildSearchRegex(searchText.trim()).test(item.name))
           .map(item => item.name)
       )].slice(0, 8)
     : []
@@ -376,6 +383,12 @@ export default function App() {
             >
               藥水參考
             </button>
+            <button
+              className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+              onClick={() => setActiveTab('portfolio')}
+            >
+              持倉紀錄
+            </button>
           </nav>
           {member ? (
             <div className="member-bar">
@@ -390,6 +403,7 @@ export default function App() {
       </header>
 
       {activeTab === 'potion' && <PotionTable />}
+      {activeTab === 'portfolio' && <Portfolio />}
 
 {activeTab === 'market' && <div className="main-layout">
         <aside className="sidebar">
@@ -506,7 +520,7 @@ export default function App() {
                       if (kw) {
                         const matched = allItems.filter(item => {
                           const keywords = kw.split(/\s+/)
-                          return keywords.every(k => `${item.name} ${item.category}`.toLowerCase().includes(k))
+                          return keywords.every(k => buildSearchRegex(k).test(`${item.name} ${item.category}`))
                         })
                         if (matched.length > 0) pinItems(matched)
                         setSearchText('')
@@ -572,6 +586,7 @@ export default function App() {
                 <table>
                   <thead>
                     <tr>
+                      <th style={{ width: 36, textAlign: 'center', color: '#9ca3af' }}>#</th>
                       <th>商品名稱</th>
                       <th>類型</th>
                       <th
@@ -598,13 +613,16 @@ export default function App() {
                   <tbody>
                     {filteredSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="empty">
+                        <td colSpan={6} className="empty">
                           {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
                         </td>
                       </tr>
                     ) : (
-                      filteredSummary.map((item) => (
+                      filteredSummary.map((item, idx) => (
                           <tr key={item.item_id}>
+                            <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.88rem', fontWeight: 600 }}>
+                              {pinnedItems.length > 0 ? idx + 1 : (scrollPage - 1) * scrollPageSize + idx + 1}
+                            </td>
                             <td className="text-bold">{item.item_name}</td>
                             <td>
                               <span className="category-tag">{item.category}</span>
@@ -646,6 +664,7 @@ export default function App() {
                 <table>
                   <thead>
                     <tr>
+                      <th style={{ width: 36, textAlign: 'center', color: '#9ca3af' }}>#</th>
                       <th>技能書名稱</th>
                       <th>職業</th>
                       <th
@@ -672,11 +691,14 @@ export default function App() {
                   <tbody>
                     {sortedSkillBooks.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="empty">尚無資料</td>
+                        <td colSpan={6} className="empty">尚無資料</td>
                       </tr>
                     ) : (
-                      sortedSkillBooks.map((item) => (
+                      sortedSkillBooks.map((item, idx) => (
                           <tr key={item.item_id}>
+                            <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.88rem', fontWeight: 600 }}>
+                              {(skillBookPage - 1) * skillBookPageSize + idx + 1}
+                            </td>
                             <td className="text-bold">{item.item_name}</td>
                             <td><span className="category-tag">{item.category}</span></td>
                             <td className={item.today_price != null ? 'text-price' : 'text-muted'}>

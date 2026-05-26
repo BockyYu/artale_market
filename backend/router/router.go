@@ -2,6 +2,9 @@ package router
 
 import (
 	"artale_market/handler"
+	"log"
+	"os"
+	"strings"
 
 	"github.com/casbin/casbin/v3"
 	"github.com/gin-contrib/cors"
@@ -20,10 +23,27 @@ type Deps struct {
 	Enforcer   *casbin.Enforcer
 }
 
+func allowedOrigins() []string {
+	v := os.Getenv("ALLOW_ORIGINS")
+	if v == "" {
+		log.Fatal("ALLOW_ORIGINS is not set")
+	}
+	var origins []string
+	for _, p := range strings.Split(v, ",") {
+		if s := strings.TrimSpace(p); s != "" {
+			origins = append(origins, s)
+		}
+	}
+	if len(origins) == 0 {
+		log.Fatal("ALLOW_ORIGINS is empty")
+	}
+	return origins
+}
+
 func Setup(deps *Deps) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:5173"},
+		AllowOrigins: allowedOrigins(),
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{"Origin", "Content-Type", "X-User-ID", "Authorization"},
 	}))
