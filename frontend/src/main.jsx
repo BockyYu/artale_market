@@ -8,6 +8,8 @@ import Layout from './admin/Layout.jsx'
 import Admins from './admin/Admins.jsx'
 import Members from './admin/Members.jsx'
 import Items from './admin/Items.jsx'
+import PriceAlerts from './admin/PriceAlerts.jsx'
+import NotifyBots from './admin/NotifyBots.jsx'
 import './App.css'
 
 function RequireAuth({ children }) {
@@ -40,6 +42,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="admins" element={<Admins />} />
           <Route path="members" element={<Members />} />
           <Route path="items" element={<Items />} />
+          <Route path="bots" element={<NotifyBots />} />
+          <Route path="alerts" element={<PriceAlerts />} />
         </Route>
       </Routes>
     </BrowserRouter>

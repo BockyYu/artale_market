@@ -147,6 +147,79 @@ export async function updateItemTrack(id, trackPriority) {
   return handleResponse(res)
 }
 
+// Notify Bots
+export async function listBots() {
+  const res = await fetch(`${BASE}/bots`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
+export async function createBot(data) {
+  const res = await fetch(`${BASE}/bots`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse(res)
+}
+
+export async function updateBot(id, data) {
+  const res = await fetch(`${BASE}/bots/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse(res)
+}
+
+export async function deleteBot(id) {
+  const res = await fetch(`${BASE}/bots/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  return handleResponse(res)
+}
+
+export async function toggleBotActive(id, isActive) {
+  const res = await fetch(`${BASE}/bots/${id}/active`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ is_active: isActive }),
+  })
+  return handleResponse(res)
+}
+
+// Price Alerts
+export async function listAlerts() {
+  const res = await fetch(`${BASE}/alerts`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
+export async function createAlert(data) {
+  const res = await fetch(`${BASE}/alerts`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse(res)
+}
+
+export async function deleteAlert(id) {
+  const res = await fetch(`${BASE}/alerts/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  return handleResponse(res)
+}
+
+export async function toggleAlertActive(id, isActive) {
+  const res = await fetch(`${BASE}/alerts/${id}/active`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ is_active: isActive }),
+  })
+  return handleResponse(res)
+}
+
 // Members
 export async function listMembers(page = 1, pageSize = 20, search = '') {
   const params = new URLSearchParams({ page, page_size: pageSize, search })

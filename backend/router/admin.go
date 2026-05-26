@@ -39,5 +39,18 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.PATCH("/items/:id/track", d.Item.SetTracked)
 		auth.GET("/items/:id/prices", d.Price.AdminGetHistory)
 		auth.GET("/items/:id/histories", d.Price.AdminGetPriceHistories)
+
+		// 價格提醒
+		auth.GET("/alerts", d.Alert.List)
+		auth.POST("/alerts", d.Alert.Create)
+		auth.DELETE("/alerts/:id", d.Alert.Delete)
+		auth.PATCH("/alerts/:id/active", d.Alert.ToggleActive)
+
+		// 通知機器人
+		auth.GET("/bots", d.Bot.List)
+		auth.POST("/bots", d.Bot.Create)
+		auth.PUT("/bots/:id", d.Bot.Update)
+		auth.DELETE("/bots/:id", d.Bot.Delete)
+		auth.PATCH("/bots/:id/active", d.Bot.ToggleActive)
 	}
 }

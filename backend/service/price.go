@@ -23,10 +23,11 @@ type priceService struct {
 	itemRepo    repository.ItemRepository
 	priceRepo   repository.PriceRepository
 	historyRepo repository.PriceHistoryRepository
+	alertSvc    AlertService
 }
 
-func NewPriceService(ir repository.ItemRepository, pr repository.PriceRepository, hr repository.PriceHistoryRepository) PriceService {
-	return &priceService{itemRepo: ir, priceRepo: pr, historyRepo: hr}
+func NewPriceService(ir repository.ItemRepository, pr repository.PriceRepository, hr repository.PriceHistoryRepository, alertSvc AlertService) PriceService {
+	return &priceService{itemRepo: ir, priceRepo: pr, historyRepo: hr, alertSvc: alertSvc}
 }
 
 func (svc *priceService) GetSummary(date string, pcts []int, categories []string, itemTypes []int, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
@@ -164,15 +165,17 @@ func (svc *priceService) GetSkillBookSummary(date string, categories []string, s
 }
 
 func (svc *priceService) Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error) {
-	if _, err := svc.itemRepo.FindByID(itemID); err != nil {
+	item, err := svc.itemRepo.FindByID(itemID)
+	if err != nil {
 		return nil, err
 	}
 
 	recordedDate, _ := time.Parse("2006-01-02", date)
 
+	var record *model.PriceRecord
 	existing, err := svc.priceRepo.FindByItemAndDate(itemID, date)
 	if err != nil {
-		record := &model.PriceRecord{
+		record = &model.PriceRecord{
 			ItemID:       itemID,
 			Price:        price,
 			RecordedDate: recordedDate,
@@ -180,17 +183,22 @@ func (svc *priceService) Record(itemID uint, price float64, date string, source 
 		if err := svc.priceRepo.Create(record); err != nil {
 			return nil, err
 		}
-		_ = svc.historyRepo.Create(&model.PriceHistory{ItemID: itemID, Price: price, Source: source})
-		return record, nil
+	} else {
+		if err := svc.priceRepo.UpdatePrice(existing, price); err != nil {
+			return nil, err
+		}
+		existing.Price = price
+		existing.UpdatedAt = time.Now()
+		record = existing
 	}
 
-	if err := svc.priceRepo.UpdatePrice(existing, price); err != nil {
-		return nil, err
-	}
-	existing.Price = price
-	existing.UpdatedAt = time.Now()
 	_ = svc.historyRepo.Create(&model.PriceHistory{ItemID: itemID, Price: price, Source: source})
-	return existing, nil
+
+	if svc.alertSvc != nil {
+		go svc.alertSvc.CheckAndNotify(itemID, item.Name, price)
+	}
+
+	return record, nil
 }
 
 func (svc *priceService) GetPriceHistories(itemID uint) ([]model.PriceHistory, error) {

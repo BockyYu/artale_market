@@ -6,6 +6,8 @@ const NAV = [
   { to: '/admin/admins', label: '管理員帳號' },
   { to: '/admin/members', label: '會員列表' },
   { to: '/admin/items', label: '道具列表' },
+  { to: '/admin/bots', label: '通知機器人' },
+  { to: '/admin/alerts', label: '價格提醒' },
 ]
 
 export default function Layout() {

@@ -60,6 +60,8 @@ func NewDB() *gorm.DB {
 		&model.AdminUser{},
 		&model.Member{},
 		&model.SystemSetting{},
+		&model.NotifyBot{},
+		&model.PriceAlert{},
 	); err != nil {
 		log.Fatalf("[DB] migration failed: %v", err)
 	}

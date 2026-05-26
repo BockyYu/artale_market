@@ -34,16 +34,20 @@ func main() {
 
 	enforcer := config.NewEnforcer(db)
 
-	itemRepo        := repository.NewItemRepository(db)
-	priceRepo       := repository.NewPriceRepository(db)
+	itemRepo         := repository.NewItemRepository(db)
+	priceRepo        := repository.NewPriceRepository(db)
 	priceHistoryRepo := repository.NewPriceHistoryRepository(db)
-	queryRepo       := repository.NewQueryRepository(rdb)
-	adminRepo       := repository.NewAdminRepository(db)
-	memberRepo      := repository.NewMemberRepository(db)
-	systemRepo      := repository.NewSystemRepository(db)
+	queryRepo        := repository.NewQueryRepository(rdb)
+	adminRepo        := repository.NewAdminRepository(db)
+	memberRepo       := repository.NewMemberRepository(db)
+	systemRepo       := repository.NewSystemRepository(db)
+	alertRepo        := repository.NewAlertRepository(db)
+	botRepo          := repository.NewBotRepository(db)
 
+	alertSvc  := service.NewAlertService(alertRepo)
+	botSvc    := service.NewBotService(botRepo)
 	itemSvc   := service.NewItemService(itemRepo, priceRepo, queryRepo)
-	priceSvc  := service.NewPriceService(itemRepo, priceRepo, priceHistoryRepo)
+	priceSvc  := service.NewPriceService(itemRepo, priceRepo, priceHistoryRepo, alertSvc)
 	querySvc  := service.NewQueryService(queryRepo, itemRepo)
 	adminSvc  := service.NewAdminService(adminRepo)
 	memberSvc := service.NewMemberService(memberRepo)
@@ -56,6 +60,8 @@ func main() {
 		Member:     handler.NewMemberHandler(memberSvc),
 		Permission: handler.NewPermissionHandler(enforcer, adminSvc),
 		System:     handler.NewSystemHandler(systemRepo),
+		Alert:      handler.NewAlertHandler(alertSvc),
+		Bot:        handler.NewBotHandler(botSvc),
 		Enforcer:   enforcer,
 	}
 

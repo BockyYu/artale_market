@@ -20,6 +20,8 @@ type Deps struct {
 	Member     *handler.MemberHandler
 	Permission *handler.PermissionHandler
 	System     *handler.SystemHandler
+	Alert      *handler.AlertHandler
+	Bot        *handler.BotHandler
 	Enforcer   *casbin.Enforcer
 }
 
@@ -42,10 +44,23 @@ func allowedOrigins() []string {
 
 func Setup(deps *Deps) *gin.Engine {
 	r := gin.Default()
+	origins := allowedOrigins()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: allowedOrigins(),
-		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Origin", "Content-Type", "X-User-ID", "Authorization"},
+		AllowOriginFunc: func(origin string) bool {
+			for _, allowed := range origins {
+				if strings.HasPrefix(allowed, "*.") {
+					// 萬用字元子域名：*.example.com 匹配 foo.example.com
+					if strings.HasSuffix(origin, allowed[1:]) {
+						return true
+					}
+				} else if allowed == origin {
+					return true
+				}
+			}
+			return false
+		},
+		AllowMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:  []string{"Origin", "Content-Type", "X-User-ID", "Authorization"},
 	}))
 
 	registerTools(r.Group("/api"), deps)
