@@ -508,8 +508,8 @@ body {
 /* ── Search with Autocomplete ── */
 .search-wrapper {
   position: relative;
-  flex: 1;
-  min-width: 220px;
+  flex: 0 0 auto;
+  width: 220px;
 }
 
 .search-input {

@@ -73,12 +73,13 @@ func (r *itemRepo) FindAllWithLatestPrice(sortBy, search string, filterType, fil
 		return nil, 0, err
 	}
 
-	today := time.Now().Format("2006-01-02")
+	loc, _ := time.LoadLocation("Asia/Taipei")
+	today := time.Now().In(loc).Format("2006-01-02")
 	q := r.applyAdminFilters(r.db.Model(&model.Item{}), search, filterType, filterPriority).
 		Select("items.*, " +
 			"(SELECT price FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price, " +
 			"(SELECT COALESCE(NULLIF(updated_at, '0001-01-01'), created_at) FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price_at, " +
-			"(SELECT COUNT(*) FROM price_histories WHERE item_id = items.id AND DATE(recorded_at) = '" + today + "') AS today_changes").
+			"(SELECT COUNT(*) FROM price_histories WHERE item_id = items.id AND (recorded_at AT TIME ZONE 'Asia/Taipei')::date = '" + today + "') AS today_changes").
 		Order(order)
 
 	if pageSize > 0 {

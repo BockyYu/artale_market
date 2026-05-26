@@ -252,13 +252,13 @@ export default function Items() {
                   {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
                 </span>
               </th>
-              <th className="sortable-th" onClick={handleSortChanges} style={{ cursor: 'pointer' }}>
+              <th className="sortable-th" onClick={handleSortChanges} style={{ cursor: 'pointer', padding: '11px 8px' }}>
                 今日修改
                 <span className="sort-icon">
                   {sortBy === 'changes_desc' ? ' ▼' : sortBy === 'changes_asc' ? ' ▲' : ' ⇅'}
                 </span>
               </th>
-              <th className="sortable-th" onClick={handleSortViews} style={{ cursor: 'pointer' }}>
+              <th className="sortable-th" onClick={handleSortViews} style={{ cursor: 'pointer', padding: '11px 8px' }}>
                 今日查詢
                 <span className="sort-icon">
                   {sortBy === 'views_desc' ? ' ▼' : sortBy === 'views_asc' ? ' ▲' : ' ⇅'}
@@ -276,8 +276,8 @@ export default function Items() {
             {!loading && items.length === 0 && (
               <tr className="empty-row"><td colSpan={10}>無符合資料</td></tr>
             )}
-            {items.map(item => (
-              <tr key={item.id}>
+            {items.map((item, index) => (
+              <tr key={item.id} className={((page - 1) * PAGE_SIZE + index) % 2 === 0 ? 'row-odd' : 'row-even'}>
                 <td>{item.id}</td>
                 <td className="text-bold">{item.name}</td>
                 <td>{item.category}</td>
@@ -286,12 +286,12 @@ export default function Items() {
                   <div style={{ color: item.latest_price != null ? '#16a34a' : '#9ca3af', fontWeight: item.latest_price != null ? 700 : 400 }}>
                     {item.latest_price != null ? item.latest_price.toLocaleString() : '—'}
                   </div>
-                  {item.latest_price_at && (() => { const d = new Date(item.latest_price_at); return d.getFullYear() > 2000 ? <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400, marginTop: 2 }}>{d.toLocaleString('zh-TW')}</div> : null })()}
+                  {item.latest_price_at && (() => { const d = new Date(item.latest_price_at); return d.getFullYear() > 2000 ? <div style={{ fontSize: 15, color: '#111827', fontWeight: 400, marginTop: 2 }}>{d.toLocaleString('zh-TW')}</div> : null })()}
                 </td>
-                <td style={{ color: item.today_changes > 0 ? '#374151' : '#9ca3af' }}>
+                <td style={{ color: item.today_changes > 0 ? '#374151' : '#9ca3af', padding: '12px 8px' }}>
                   {item.today_changes} 次
                 </td>
-                <td style={{ color: item.today_views > 0 ? '#374151' : '#9ca3af' }}>
+                <td style={{ color: item.today_views > 0 ? '#374151' : '#9ca3af', padding: '12px 8px' }}>
                   {item.today_views} 次
                 </td>
                 <td>
@@ -333,7 +333,7 @@ export default function Items() {
         </table>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, padding: '0 4px' }}>
-          <span style={{ fontSize: 13, color: '#6b7280' }}>
+          <span style={{ fontSize: 16, color: '#6b7280', fontWeight: 600 }}>
             第 {Math.min((page - 1) * PAGE_SIZE + 1, total)} – {Math.min(page * PAGE_SIZE, total)} 筆，共 {total} 筆
           </span>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -403,28 +403,28 @@ export default function Items() {
 
       {historyItem && (
         <div className="modal-overlay" onClick={() => setHistoryItem(null)}>
-          <div className="modal" style={{ width: '50vw', maxWidth: 675 }} onClick={e => e.stopPropagation()}>
-            <h2>{historyItem.name} — 歷史價格</h2>
+          <div className="modal" style={{ width: '70vw', maxWidth: 950 }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize: 22 }}>{historyItem.name} — 歷史價格</h2>
             {historyLoading ? (
-              <p style={{ color: '#6b7280', fontSize: 14 }}>載入中...</p>
+              <p style={{ color: '#6b7280', fontSize: 18 }}>載入中...</p>
             ) : historyRecords.length === 0 ? (
-              <p style={{ color: '#9ca3af', fontSize: 14 }}>尚無價格記錄</p>
+              <p style={{ color: '#9ca3af', fontSize: 18 }}>尚無價格記錄</p>
             ) : (
-              <div style={{ maxHeight: 400, overflowY: 'auto', overflowX: 'hidden', marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 8 }}>
+              <div style={{ maxHeight: 560, overflowY: 'auto', overflowX: 'hidden', marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 8 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>時間</th>
-                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>價格</th>
-                      <th style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>來源</th>
+                      <th style={{ padding: '12px 16px', fontSize: 18, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>時間</th>
+                      <th style={{ padding: '12px 16px', fontSize: 18, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>價格</th>
+                      <th style={{ padding: '12px 16px', fontSize: 18, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>來源</th>
                     </tr>
                   </thead>
                   <tbody>
                     {historyRecords.map(r => (
                       <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '10px 14px', fontSize: 13, color: '#374151' }}>{new Date(r.recorded_at).toLocaleString('zh-TW')}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 14, color: '#16a34a', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#6b7280' }}>{r.source === 'admin' ? '手動' : '自動'}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 17, color: '#374151' }}>{new Date(r.recorded_at).toLocaleString('zh-TW')}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 19, color: '#16a34a', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 17, color: '#6b7280' }}>{r.source === 'admin' ? '手動' : '自動'}</td>
                       </tr>
                     ))}
                   </tbody>
