@@ -383,12 +383,6 @@ export default function App() {
             >
               藥水參考
             </button>
-            <button
-              className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-              onClick={() => setActiveTab('portfolio')}
-            >
-              持倉紀錄
-            </button>
           </nav>
           {member ? (
             <div className="member-bar">
@@ -403,7 +397,6 @@ export default function App() {
       </header>
 
       {activeTab === 'potion' && <PotionTable />}
-      {activeTab === 'portfolio' && <Portfolio />}
 
 {activeTab === 'market' && <div className="main-layout">
         <aside className="sidebar">
