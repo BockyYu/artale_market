@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { listItems, createItem, updateItem, updateItemTrack, getItemHistories, recordItemPrice } from './api'
 
-const EMPTY_FORM = { name: '', item_type: 1, category: '', percentage: 0, description: '', track_priority: 0 }
+const EMPTY_FORM = { name: '', english_name: '', search_mode: 1, item_type: 1, category: '', percentage: 0, description: '', track_priority: 0 }
 
 const ITEM_TYPE_LABEL = {
   1: '卷軸',
@@ -129,11 +129,13 @@ export default function Items() {
     setEditingItem(item)
     setEditForm({
       name: item.name,
+      english_name: item.english_name || '',
+      search_mode: item.search_mode ?? 1,
       item_type: item.item_type,
       category: item.category,
       percentage: item.percentage,
       description: item.description,
-      price: item.latest_price != null ? Number(item.latest_price).toLocaleString() : '',
+      price: '',
     })
   }
 
@@ -143,6 +145,8 @@ export default function Items() {
     try {
       const payload = {
         name: editForm.name,
+        english_name: editForm.english_name,
+        search_mode: Number(editForm.search_mode),
         item_type: Number(editForm.item_type),
         percentage: Number(editForm.item_type) === 1 ? Number(editForm.percentage) : 0,
         category: editForm.category,
@@ -355,6 +359,19 @@ export default function Items() {
                 <input required value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="form-group">
+                <label>英文名稱</label>
+                <input value={editForm.english_name} onChange={e => setEditForm(f => ({ ...f, english_name: e.target.value }))} placeholder="選填" />
+              </div>
+              <div className="form-group">
+                <label>查詢方式</label>
+                <select className="search-input" style={{ width: '100%', maxWidth: '100%' }}
+                  value={editForm.search_mode}
+                  onChange={e => setEditForm(f => ({ ...f, search_mode: Number(e.target.value) }))}>
+                  <option value={1}>1 - 中文</option>
+                  <option value={2}>2 - 英文</option>
+                </select>
+              </div>
+              <div className="form-group">
                 <label>類型 *</label>
                 <select className="search-input" style={{ width: '100%', maxWidth: '100%' }}
                   value={editForm.item_type}
@@ -446,6 +463,19 @@ export default function Items() {
               <div className="form-group">
                 <label>名稱 *</label>
                 <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="商品名稱" />
+              </div>
+              <div className="form-group">
+                <label>英文名稱</label>
+                <input value={form.english_name} onChange={e => setForm(f => ({ ...f, english_name: e.target.value }))} placeholder="選填" />
+              </div>
+              <div className="form-group">
+                <label>查詢方式</label>
+                <select className="search-input" style={{ width: '100%', maxWidth: '100%' }}
+                  value={form.search_mode}
+                  onChange={e => setForm(f => ({ ...f, search_mode: Number(e.target.value) }))}>
+                  <option value={1}>1 - 中文</option>
+                  <option value={2}>2 - 英文</option>
+                </select>
               </div>
               <div className="form-group">
                 <label>類型 *</label>

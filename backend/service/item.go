@@ -17,7 +17,7 @@ type ItemService interface {
 	GetPriceSummary(id uint) (*model.PriceSummary, error)
 	GetTracked(date string) ([]model.Item, error)
 	Create(item *model.Item) error
-	Update(id uint, name string, itemType model.ItemType, percentage int, category, description string) (*model.Item, error)
+	Update(id uint, name, englishName string, searchMode int, itemType model.ItemType, percentage int, category, description string) (*model.Item, error)
 	SetTracked(id uint, priority model.TrackPriority) (*model.Item, error)
 	Delete(id uint) error
 }
@@ -102,22 +102,23 @@ func (s *itemService) Create(item *model.Item) error {
 	return s.itemRepo.Create(item)
 }
 
-func (s *itemService) Update(id uint, name string, itemType model.ItemType, percentage int, category, description string) (*model.Item, error) {
+func (s *itemService) Update(id uint, name, englishName string, searchMode int, itemType model.ItemType, percentage int, category, description string) (*model.Item, error) {
 	item, err := s.itemRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
-	err = s.itemRepo.Update(item, map[string]any{
-		"name":        name,
-		"item_type":   itemType,
-		"percentage":  percentage,
-		"category":    category,
-		"description": description,
-	})
-	if err != nil {
+	if err = s.itemRepo.Update(item, map[string]any{
+		"name":         name,
+		"english_name": englishName,
+		"search_mode":  searchMode,
+		"item_type":    itemType,
+		"percentage":   percentage,
+		"category":     category,
+		"description":  description,
+	}); err != nil {
 		return nil, err
 	}
-	return item, nil
+	return s.itemRepo.FindByID(id)
 }
 
 func (s *itemService) GetTracked(date string) ([]model.Item, error) {

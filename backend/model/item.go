@@ -46,6 +46,8 @@ type AdminItemPage struct {
 type Item struct {
 	ID            uint          `json:"id"             gorm:"primaryKey;autoIncrement"`
 	Name          string        `json:"name"           binding:"required"`
+	EnglishName   string        `json:"english_name"`                        // 英文名稱
+	SearchMode    int           `json:"search_mode"    gorm:"default:1"`     // 查詢方式 1=中文 2=英文
 	Percentage    int           `json:"percentage"`                          // 卷軸成功率（技能書不使用）
 	Category      string        `json:"category"       binding:"required"`   // 分類：防具部位 / 武器種類 / 職業
 	Description   string        `json:"description"`                         // 備註

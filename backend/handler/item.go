@@ -68,7 +68,7 @@ func (h *ItemHandler) Update(c *gin.Context) {
 		respBadRequest(c, err)
 		return
 	}
-	item, err := h.svc.Update(parseID(c), input.Name, input.ItemType, input.Percentage, input.Category, input.Description)
+	item, err := h.svc.Update(parseID(c), input.Name, input.EnglishName, input.SearchMode, input.ItemType, input.Percentage, input.Category, input.Description)
 	if err != nil {
 		respNotFound(c, err)
 		return
