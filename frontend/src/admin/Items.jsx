@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listItems, createItem, updateItem, updateItemTrack, getItemHistories, recordItemPrice } from './api'
+import { listItems, listItemCategories, createItem, updateItem, updateItemTrack, getItemHistories, recordItemPrice } from './api'
 
 const EMPTY_FORM = { name: '', english_name: '', search_mode: 1, item_type: 1, category: '', percentage: 0, description: '', track_priority: 0 }
+
 
 const ITEM_TYPE_LABEL = {
   1: '卷軸',
@@ -30,6 +31,7 @@ const TRACK_PRIORITY_CLASS = {
 const PAGE_SIZE = 20
 
 export default function Items() {
+  const [categories, setCategories] = useState([])
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -137,6 +139,7 @@ export default function Items() {
       description: item.description,
       price: '',
     })
+    listItemCategories(item.item_type).then(setCategories).catch(() => setCategories([]))
   }
 
   async function handleSaveItem(e) {
@@ -199,19 +202,31 @@ export default function Items() {
         <h1>道具列表</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>共 {total} 筆</span>
-          <button className="btn-add" onClick={() => { setForm(EMPTY_FORM); setShowCreate(true) }}>+ 新增商品</button>
+          <button className="btn-add" onClick={() => { setForm(EMPTY_FORM); setShowCreate(true); listItemCategories(EMPTY_FORM.item_type).then(setCategories).catch(() => setCategories([])) }}>+ 新增商品</button>
         </div>
       </div>
 
       <div className="card">
         <div className="card-toolbar" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            className="search-input"
-            placeholder="搜尋名稱 / 分類"
-            value={search}
-            onChange={e => handleSearchChange(e.target.value)}
-            style={{ flex: '1 1 200px' }}
-          />
+          <div style={{ position: 'relative', flex: '1 1 200px' }}>
+            <input
+              className="search-input"
+              placeholder="搜尋道具名稱"
+              value={search}
+              onChange={e => handleSearchChange(e.target.value)}
+              style={{ width: '100%', paddingRight: search ? 32 : undefined }}
+            />
+            {search && (
+              <button
+                onClick={() => handleSearchChange('')}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 20, color: '#6b7280', lineHeight: 1, padding: '0 2px',
+                }}
+              >×</button>
+            )}
+          </div>
 
           <select
             className="search-input"
@@ -375,7 +390,11 @@ export default function Items() {
                 <label>類型 *</label>
                 <select className="search-input" style={{ width: '100%', maxWidth: '100%' }}
                   value={editForm.item_type}
-                  onChange={e => setEditForm(f => ({ ...f, item_type: Number(e.target.value) }))}>
+                  onChange={e => {
+                    const t = Number(e.target.value)
+                    setEditForm(f => ({ ...f, item_type: t, category: '' }))
+                    listItemCategories(t).then(setCategories).catch(() => setCategories([]))
+                  }}>
                   {Object.entries(ITEM_TYPE_LABEL).map(([k, v]) => (
                     <option key={k} value={Number(k)}>{v}</option>
                   ))}
@@ -383,7 +402,12 @@ export default function Items() {
               </div>
               <div className="form-group">
                 <label>分類 *</label>
-                <input required value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} />
+                <select className="search-input" style={{ width: '100%', maxWidth: '100%' }}
+                  value={editForm.category}
+                  onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}>
+                  <option value="">-- 選擇分類 --</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               {Number(editForm.item_type) === 1 && (
                 <div className="form-group">
@@ -483,7 +507,11 @@ export default function Items() {
                   className="search-input"
                   style={{ width: '100%', maxWidth: '100%' }}
                   value={form.item_type}
-                  onChange={e => setForm(f => ({ ...f, item_type: Number(e.target.value) }))}
+                  onChange={e => {
+                    const t = Number(e.target.value)
+                    setForm(f => ({ ...f, item_type: t, category: '' }))
+                    listItemCategories(t).then(setCategories).catch(() => setCategories([]))
+                  }}
                 >
                   {Object.entries(ITEM_TYPE_LABEL).map(([k, v]) => (
                     <option key={k} value={Number(k)}>{v}</option>
@@ -492,7 +520,12 @@ export default function Items() {
               </div>
               <div className="form-group">
                 <label>分類 *</label>
-                <input required value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="例：頭盔、劍士、消耗品..." />
+                <select className="search-input" style={{ width: '100%', maxWidth: '100%' }}
+                  value={form.category}
+                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                  <option value="">-- 選擇分類 --</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               {Number(form.item_type) === 1 && (
                 <div className="form-group">

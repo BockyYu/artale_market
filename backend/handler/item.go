@@ -13,12 +13,13 @@ import (
 )
 
 type ItemHandler struct {
-	svc       service.ItemService
-	queryRepo repository.QueryRepository
+	svc         service.ItemService
+	queryRepo   repository.QueryRepository
+	categoryRepo repository.CategoryRepository
 }
 
-func NewItemHandler(svc service.ItemService, qr repository.QueryRepository) *ItemHandler {
-	return &ItemHandler{svc: svc, queryRepo: qr}
+func NewItemHandler(svc service.ItemService, qr repository.QueryRepository, cr repository.CategoryRepository) *ItemHandler {
+	return &ItemHandler{svc: svc, queryRepo: qr, categoryRepo: cr}
 }
 
 func (h *ItemHandler) GetAll(c *gin.Context) {
@@ -74,6 +75,16 @@ func (h *ItemHandler) Update(c *gin.Context) {
 		return
 	}
 	respOK(c, item)
+}
+
+func (h *ItemHandler) GetCategories(c *gin.Context) {
+	itemType, _ := strconv.Atoi(c.DefaultQuery("item_type", "0"))
+	categories, err := h.categoryRepo.FindByItemType(itemType)
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, categories)
 }
 
 func (h *ItemHandler) Delete(c *gin.Context) {

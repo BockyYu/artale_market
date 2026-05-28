@@ -100,6 +100,12 @@ export async function createItem(data) {
   return handleResponse(res)
 }
 
+export async function listItemCategories(itemType = 0) {
+  const params = itemType > 0 ? `?item_type=${itemType}` : ''
+  const res = await fetch(`${BASE}/items/categories${params}`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
 export async function listItems({ sortBy = '', search = '', filterType = 0, filterPriority = -1, page = 1, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ page, page_size: pageSize })
   if (sortBy) params.set('sort_by', sortBy)

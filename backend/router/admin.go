@@ -33,6 +33,7 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.POST("/items/:id/prices", middleware.CasbinAuth(d.Enforcer, "price", "write"), d.Price.RecordPrice)
 
 		// 道具列表與查詢優先度管理
+		auth.GET("/items/categories", d.Item.GetCategories)
 		auth.GET("/items", d.Item.AdminGetAll)
 		auth.POST("/items", d.Item.Create)
 		auth.PUT("/items/:id", d.Item.Update)

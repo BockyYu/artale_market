@@ -52,8 +52,28 @@ const JOB_GROUPS = [
   ]},
 ]
 
+function MobileBlock() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: '#f0f2f5',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: 32, textAlign: 'center', zIndex: 9999,
+    }}>
+      <div style={{ fontSize: 56, marginBottom: 20 }}>🖥️</div>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a2e', marginBottom: 12 }}>
+        請使用電腦瀏覽器開啟
+      </h1>
+      <p style={{ fontSize: 15, color: '#6b7280', lineHeight: 1.6 }}>
+        本網站目前不支援手機或平板裝置，<br />請改用桌機或筆電瀏覽。
+      </p>
+    </div>
+  )
+}
+
 export default function App() {
   const navigate = useNavigate()
+
+  if (window.innerWidth < 768) return <MobileBlock />
   const [member, setMember] = useState(getMemberInfo)
   const [appConfig, setAppConfig] = useState(null)
   const [activeTab, setActiveTab] = useState('market')
@@ -502,10 +522,7 @@ export default function App() {
                   className="search-input"
                   placeholder="搜尋商品名稱"
                   value={searchText}
-                  onChange={(e) => {
-                    setSearchText(e.target.value)
-                    setShowSuggestions(true)
-                  }}
+                  onChange={(e) => { setSearchText(e.target.value); setShowSuggestions(true) }}
                   onFocus={() => setShowSuggestions(true)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {

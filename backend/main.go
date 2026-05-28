@@ -43,6 +43,7 @@ func main() {
 	systemRepo       := repository.NewSystemRepository(db)
 	alertRepo        := repository.NewAlertRepository(db)
 	botRepo          := repository.NewBotRepository(db)
+	categoryRepo     := repository.NewCategoryRepository(db)
 
 	alertSvc  := service.NewAlertService(alertRepo)
 	botSvc    := service.NewBotService(botRepo)
@@ -53,7 +54,7 @@ func main() {
 	memberSvc := service.NewMemberService(memberRepo)
 
 	deps := &router.Deps{
-		Item:       handler.NewItemHandler(itemSvc, queryRepo),
+		Item:       handler.NewItemHandler(itemSvc, queryRepo, categoryRepo),
 		Price:      handler.NewPriceHandler(priceSvc, querySvc),
 		Query:      handler.NewQueryHandler(querySvc),
 		Admin:      handler.NewAdminHandler(adminSvc),
