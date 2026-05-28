@@ -49,7 +49,7 @@ type Item struct {
 	EnglishName   string        `json:"english_name"`                        // 英文名稱
 	SearchMode    int           `json:"search_mode"    gorm:"default:1"`     // 查詢方式 1=中文 2=英文
 	Percentage    int           `json:"percentage"`                          // 卷軸成功率（技能書不使用）
-	Category      string        `json:"category"       binding:"required"`   // 分類：防具部位 / 武器種類 / 職業
+	Category      string        `json:"category"`                            // 分類：防具部位 / 武器種類 / 職業
 	Description   string        `json:"description"`                         // 備註
 	ItemType      ItemType      `json:"item_type"      gorm:"default:1;index"` // 商品類型
 	TrackPriority TrackPriority `json:"track_priority" gorm:"default:0"`     // 追蹤優先等級

@@ -625,7 +625,7 @@ body {
 .sidebar {
   width: 320px;
   flex-shrink: 0;
-  background: #fff;
+  background: #eeedf0;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
   padding: 14px 12px;
@@ -954,4 +954,118 @@ body {
 
 .price-hint strong {
   color: #1a1a2e;
+}
+
+/* ── Tab Sidebar (fs) ── */
+.fs-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fs-tabs {
+  display: flex;
+  gap: 3px;
+  background: #d8d7df;
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 6px;
+}
+
+.fs-tab {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.fs-tab:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.fs-tab.active {
+  background: #3B3494;
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.fs-panel {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fs-panel.active {
+  display: flex;
+}
+
+.fs-sub-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #777;
+  letter-spacing: 0.05em;
+  padding: 4px 0 2px;
+  text-align: center;
+}
+
+.fs-row {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.fs-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 4px;
+  border: 1px solid #cccbd8;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #faf9fb;
+  color: #555;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.fs-btn:hover {
+  background: #e5e4f4;
+  border-color: #9b99cc;
+  color: #3B3494;
+}
+
+.fs-btn.active {
+  background: #3B3494;
+  color: #fff;
+  border-color: #3B3494;
+}
+
+.fs-btn-clear {
+  background: #fce4ec !important;
+  color: #c62828 !important;
+  border-color: #ef9a9a !important;
+}
+
+.fs-btn-clear:hover {
+  background: #ffcdd2 !important;
+  border-color: #c62828 !important;
+  color: #c62828 !important;
+}
+
+.fs-divider {
+  height: 1px;
+  background: #cccbd8;
+  margin: 4px 0;
 }

@@ -21,32 +21,32 @@ const USER_ID = getUserID()
 const ALL_SKILLBOOK_JOB = '全部'
 
 const JOB_GROUPS = [
-  { label: '全職業', cols: 1, items: [
-    { label: '全職業', value: '全職業共通' },
+  { label: '全職業通用', cols: 1, items: [
+    { label: '全職業通用', value: '全職業共通' },
   ]},
-  { label: '劍士系', cols: 2, items: [
+  { label: '劍士', cols: 2, items: [
     { label: '劍士',   value: '劍士' },
     { label: '英雄',   value: '英雄' },
     { label: '聖騎士', value: '聖騎士' },
     { label: '黑騎士', value: '黑騎士' },
   ]},
-  { label: '弓手系', cols: 3, items: [
+  { label: '弓手', cols: 3, items: [
     { label: '弓手',   value: '弓手' },
     { label: '箭神',   value: '箭神' },
     { label: '神射手', value: '神射手' },
   ]},
-  { label: '法師系', cols: 2, items: [
+  { label: '法師', cols: 2, items: [
     { label: '法師',   value: '法師' },
     { label: '火毒',   value: '火毒' },
     { label: '冰雷',   value: '冰雷' },
     { label: '主教',   value: '主教' },
   ]},
-  { label: '盜賊系', cols: 3, items: [
+  { label: '盜賊', cols: 3, items: [
     { label: '盜賊',   value: '盜賊' },
     { label: '神偷',   value: '神偷' },
     { label: '夜使者', value: '夜使者' },
   ]},
-  { label: '海賊系', cols: 2, items: [
+  { label: '海賊', cols: 2, items: [
     { label: '槍神',   value: '槍神' },
     { label: '拳霸',   value: '拳霸' },
   ]},
@@ -420,97 +420,89 @@ export default function App() {
 
 {activeTab === 'market' && <div className="main-layout">
         <aside className="sidebar">
+          <div className="fs-wrap">
+            <div className="fs-tabs">
+              <button
+                className={`fs-tab ${viewMode === 'skillbook' ? 'active' : ''}`}
+                onClick={() => setViewMode('skillbook')}
+              >職業技能書</button>
+              <button
+                className={`fs-tab ${viewMode === 'scroll' ? 'active' : ''}`}
+                onClick={() => setViewMode('scroll')}
+              >卷軸</button>
+            </div>
 
-          {viewMode === 'scroll' ? (
-            <>
-              <div className="sidebar-title">卷軸成功率</div>
-              <div className="pct-grid">
+            {/* 職業 panel */}
+            <div className={`fs-panel ${viewMode === 'skillbook' ? 'active' : ''}`}>
+              <div className="fs-row" style={{ gridTemplateColumns: '1fr' }}>
                 <button
-                  className={`pct-filter-btn ${filterPct.length === 0 ? 'active' : ''}`}
+                  className={`fs-btn ${selectedJob === ALL_SKILLBOOK_JOB ? 'active' : ''}`}
+                  onClick={() => setSelectedJob(ALL_SKILLBOOK_JOB)}
+                >全部</button>
+              </div>
+              {JOB_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div className="fs-sub-label">{group.label}</div>
+                  <div className="fs-row" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
+                    {group.items.map(({ label, value }) => (
+                      <button
+                        key={value}
+                        className={`fs-btn ${selectedJob === value ? 'active' : ''}`}
+                        onClick={() => setSelectedJob(value)}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 卷軸 panel */}
+            <div className={`fs-panel ${viewMode === 'scroll' ? 'active' : ''}`}>
+              <div className="fs-sub-label">成功率</div>
+              <div className="fs-row" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                <button
+                  className={`fs-btn ${filterPct.length === 0 ? 'active' : ''}`}
                   onClick={() => setFilterPct([])}
-                >
-                  全部
-                </button>
+                >全部</button>
                 {PCT_OPTIONS.map((pct) => (
                   <button
                     key={pct}
-                    className={`pct-filter-btn ${filterPct.includes(pct) ? 'active' : ''}`}
+                    className={`fs-btn ${filterPct.includes(pct) ? 'active' : ''}`}
                     onClick={() => setFilterPct(prev =>
                       prev.includes(pct) ? prev.filter(p => p !== pct) : [...prev, pct]
                     )}
-                  >
-                    {pct}%
-                  </button>
+                  >{pct}%</button>
                 ))}
               </div>
 
-              <div className="sidebar-divider" />
+              <div className="fs-divider" />
 
               {filterCategories.length > 0 && (
                 <button
-                  className="cat-clear-btn"
+                  className="fs-btn fs-btn-clear"
+                  style={{ width: '100%', marginBottom: 4 }}
                   onClick={() => setFilterCategories([])}
-                >
-                  清除分類 ×
-                </button>
+                >清除分類 ×</button>
               )}
 
               {CATEGORY_GROUPS.map((group) => (
                 <div key={group.label}>
-                  <div className="sidebar-group-label">{group.label}</div>
-                  <div className="cat-grid" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
+                  <div className="fs-sub-label">{group.label}</div>
+                  <div className="fs-row" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
                     {group.items.map(({ label, value }) => (
                       <button
                         key={value}
-                        className={`cat-filter-btn ${filterCategories.includes(value) ? 'active' : ''}`}
+                        className={`fs-btn ${filterCategories.includes(value) ? 'active' : ''}`}
                         onClick={() => setFilterCategories(prev =>
                           prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
                         )}
-                      >
-                        {label}
-                      </button>
+                      >{label}</button>
                     ))}
                   </div>
                 </div>
               ))}
-            </>
-          ) : (
-            <>
-              <div className="sidebar-title">職業</div>
-              <button
-                className={`cat-filter-btn ${selectedJob === ALL_SKILLBOOK_JOB ? 'active' : ''}`}
-                style={{ marginBottom: 4 }}
-                onClick={() => setSelectedJob(ALL_SKILLBOOK_JOB)}
-              >
-                全部
-              </button>
-              {JOB_GROUPS.map((group) => (
-                <div key={group.label}>
-                  <div className="sidebar-group-label">{group.label}</div>
-                  <div className="cat-grid" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
-                    {group.items.map(({ label, value }) => (
-                      <button
-                        key={value}
-                        className={`cat-filter-btn ${selectedJob === value ? 'active' : ''}`}
-                        onClick={() => setSelectedJob(value)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-
-          <div className="sidebar-divider" />
-          <button
-            className={`skillbook-toggle-btn ${viewMode === 'skillbook' ? 'active' : ''}`}
-            onClick={() => setViewMode(v => v === 'scroll' ? 'skillbook' : 'scroll')}
-          >
-            {viewMode === 'scroll' ? '技能書' : '← 回卷軸'}
-          </button>
-
+            </div>
+          </div>
         </aside>
 
         <div className="main-content">
