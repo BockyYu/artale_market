@@ -66,6 +66,8 @@ func main() {
 		Enforcer:   enforcer,
 	}
 
+	config.StartAlertScheduler(alertRepo, priceRepo, alertSvc)
+
 	r := router.Setup(deps)
 
 	log.Println("[Server] running on :8080")

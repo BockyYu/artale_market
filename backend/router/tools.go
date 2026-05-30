@@ -11,4 +11,5 @@ func registerTools(g *gin.RouterGroup, d *Deps) {
 	g.PUT("/items/:id", d.Item.Update)
 	g.PATCH("/items/:id/track", d.Item.SetTracked)
 	g.DELETE("/items/:id", d.Item.Delete)
+	g.GET("/bot/alert-items", d.Alert.ListBotItems)
 }

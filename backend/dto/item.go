@@ -9,7 +9,7 @@ type UpdateItemReq struct {
 	SearchMode  int              `json:"search_mode"  binding:"min=1,max=2"` // 查詢方式 1=中文 2=英文
 	ItemType    model.ItemType   `json:"item_type"    binding:"required"` // 商品類型
 	Percentage  int              `json:"percentage"   binding:"min=0,max=100"` // 卷軸成功率
-	Category    string           `json:"category"     binding:"required"` // 分類
+	Category    string           `json:"category"` // 分類
 	Description string           `json:"description"` // 備註（選填）
 }
 

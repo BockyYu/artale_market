@@ -27,8 +27,8 @@ export default function PriceAlerts() {
     setLoading(true)
     try {
       const [alertData, botData] = await Promise.all([listAlerts(), listBots()])
-      setAlerts(alertData || [])
-      setBots((botData || []).filter(b => b.is_active))
+      setAlerts(alertData?.data || [])
+      setBots((botData?.data || []).filter(b => b.is_active))
     } catch (err) {
       alert(err.message)
     } finally {

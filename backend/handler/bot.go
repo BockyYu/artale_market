@@ -21,7 +21,7 @@ func (h *BotHandler) List(c *gin.Context) {
 		respInternal(c, err)
 		return
 	}
-	respOK(c, bots)
+	respOK(c, gin.H{"data": bots})
 }
 
 func (h *BotHandler) Create(c *gin.Context) {

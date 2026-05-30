@@ -12,6 +12,7 @@ type PriceRepository interface {
 	Create(record *model.PriceRecord) error
 	UpdatePrice(record *model.PriceRecord, price float64) error
 	FindHistoryByItem(itemID uint, limit int) ([]model.PriceRecord, error)
+	FindLatestByItem(itemID uint) (*model.PriceRecord, error)
 	DeleteByItem(itemID uint) error
 }
 
@@ -53,6 +54,15 @@ func (r *priceRepo) FindHistoryByItem(itemID uint, limit int) ([]model.PriceReco
 		Limit(limit).
 		Find(&records).Error
 	return records, err
+}
+
+func (r *priceRepo) FindLatestByItem(itemID uint) (*model.PriceRecord, error) {
+	var record model.PriceRecord
+	err := r.db.Where("item_id = ?", itemID).Order("recorded_date desc").First(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
 }
 
 func (r *priceRepo) DeleteByItem(itemID uint) error {

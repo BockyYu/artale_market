@@ -28,7 +28,7 @@ func (h *ItemHandler) GetAll(c *gin.Context) {
 		respInternal(c, err)
 		return
 	}
-	respOK(c, items)
+	respOK(c, gin.H{"data": items})
 }
 
 func (h *ItemHandler) AdminGetAll(c *gin.Context) {

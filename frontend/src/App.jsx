@@ -126,7 +126,7 @@ export default function App() {
     try {
       const res = await memberFetch('/api/v1/member/items')
       const result = await res.json()
-      setAllItems(result || [])
+      setAllItems(result?.data || [])
     } catch {
       setAllItems([])
     }
@@ -213,10 +213,20 @@ export default function App() {
     return new RegExp(pattern, 'i')
   }
 
+  function hasEnglish(text) {
+    return /[a-zA-Z]/.test(text)
+  }
+
+  function itemMatchesKeyword(item, keyword) {
+    const re = buildSearchRegex(keyword)
+    if (hasEnglish(keyword) && item.english_name) return re.test(item.english_name)
+    return re.test(item.name)
+  }
+
   const suggestions = searchText.trim().length > 0
     ? [...new Set(
         allItems
-          .filter(item => buildSearchRegex(searchText.trim()).test(item.name))
+          .filter(item => itemMatchesKeyword(item, searchText.trim()))
           .map(item => item.name)
       )].slice(0, 8)
     : []
@@ -522,7 +532,11 @@ export default function App() {
                       if (kw) {
                         const matched = allItems.filter(item => {
                           const keywords = kw.split(/\s+/)
-                          return keywords.every(k => buildSearchRegex(k).test(`${item.name} ${item.category}`))
+                          return keywords.every(k => {
+                            const re = buildSearchRegex(k)
+                            if (hasEnglish(k) && item.english_name) return re.test(item.english_name)
+                            return re.test(`${item.name} ${item.category}`)
+                          })
                         })
                         if (matched.length > 0) pinItems(matched)
                         setSearchText('')
@@ -600,7 +614,15 @@ export default function App() {
                           {sortBy === 'price_desc' ? ' ▼' : sortBy === 'price_asc' ? ' ▲' : ' ⇅'}
                         </span>
                       </th>
-                      <th>昨日</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setSortBy(s => s === 'yesterday_price_desc' ? 'yesterday_price_asc' : 'yesterday_price_desc')}
+                      >
+                        昨日
+                        <span className="sort-icon">
+                          {sortBy === 'yesterday_price_desc' ? ' ▼' : sortBy === 'yesterday_price_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
                       <th
                         className="sortable-th"
                         onClick={() => setSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
@@ -678,7 +700,15 @@ export default function App() {
                           {skillBookSortBy === 'price_desc' ? ' ▼' : skillBookSortBy === 'price_asc' ? ' ▲' : ' ⇅'}
                         </span>
                       </th>
-                      <th>昨日</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setSkillBookSortBy(s => s === 'yesterday_price_desc' ? 'yesterday_price_asc' : 'yesterday_price_desc')}
+                      >
+                        昨日
+                        <span className="sort-icon">
+                          {skillBookSortBy === 'yesterday_price_desc' ? ' ▼' : skillBookSortBy === 'yesterday_price_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
                       <th
                         className="sortable-th"
                         onClick={() => setSkillBookSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}

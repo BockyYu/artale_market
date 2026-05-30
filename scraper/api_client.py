@@ -10,7 +10,8 @@ def fetch_items() -> list[dict]:
     """
     r = requests.get(f"{API_BASE_URL}/api/items", timeout=10)
     r.raise_for_status()
-    data = r.json()
+    resp = r.json()
+    data = resp.get("data", resp) if isinstance(resp, dict) else resp
     if not isinstance(data, list):
         return []
     tracked = [i for i in data if 0 < i.get("track_priority", 0) < 3]

@@ -186,6 +186,10 @@ func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string
 	switch sortBy {
 	case "price_asc":
 		q = q.Order("pr_today.price ASC NULLS LAST")
+	case "yesterday_price_desc":
+		q = q.Order("pr_yesterday.price DESC NULLS LAST")
+	case "yesterday_price_asc":
+		q = q.Order("pr_yesterday.price ASC NULLS LAST")
 	case "change_desc":
 		q = q.Order("change_pct DESC NULLS LAST")
 	case "change_asc":
@@ -229,6 +233,10 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 	switch sortBy {
 	case "price_asc":
 		q = q.Order("pr_today.price ASC NULLS LAST")
+	case "yesterday_price_desc":
+		q = q.Order("pr_yesterday.price DESC NULLS LAST")
+	case "yesterday_price_asc":
+		q = q.Order("pr_yesterday.price ASC NULLS LAST")
 	case "change_desc":
 		q = q.Order("change_pct DESC NULLS LAST")
 	case "change_asc":

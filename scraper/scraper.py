@@ -22,6 +22,7 @@ from config import (
     AFTER_ROW_CLICK_DELAY,
     AFTER_SEARCH_DELAY,
     AFTER_SORT_DELAY,
+    EQUIP_FIRST_ROW_OFFSET,
     WINDOW_TITLE,
 )
 
@@ -36,8 +37,8 @@ _ITEM_TYPE_EQUIP = 6
 # 搜尋輸入框快取：(center_x, center_y)，相對於視窗左上角
 _search_box_cache: tuple[int, int] | None = None
 
-# 「每個價錢」欄位快取：(center_x, center_y, col_x_min, col_x_max, row_y_min)
-_price_header_cache: tuple[int, int, int, int, int] | None = None
+# 「每個價錢」欄位快取，以 item_type 為 key
+_price_header_cache: dict[int, tuple[int, int, int, int, int]] = {}
 
 
 def _get_reader() -> easyocr.Reader:
@@ -136,15 +137,15 @@ def search_item(win, item_name: str) -> None:
     time.sleep(AFTER_SEARCH_DELAY)
 
 
-def _find_price_header(win) -> tuple[int, int, int, int, int]:
+def _find_price_header(win, item_type: int = 0) -> tuple[int, int, int, int, int]:
     """
     OCR 自動偵測「每個價錢」欄位標題位置。
     回傳 (center_x, center_y, col_x_min, col_x_max, row_y_min)，座標相對於視窗左上角。
-    結果會快取，視窗移動後重啟腳本即可重新偵測。
+    結果以 item_type 為 key 快取，同類型道具不需重複偵測。
     """
     global _price_header_cache
-    if _price_header_cache is not None:
-        return _price_header_cache
+    if item_type in _price_header_cache:
+        return _price_header_cache[item_type]
 
     logger.info("  自動偵測「每個價錢」欄位位置...")
     img, _, _ = _capture_full(win)
@@ -157,9 +158,9 @@ def _find_price_header(win) -> tuple[int, int, int, int, int]:
             cy = int((bbox[0][1] + bbox[2][1]) / 2)
             cx = (x1 + x2) // 2
             pad = max(60, (x2 - x1) // 2)
-            _price_header_cache = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
+            _price_header_cache[item_type] = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
             logger.info(f"  偵測成功（單塊）：center=({cx},{cy})")
-            return _price_header_cache
+            return _price_header_cache[item_type]
 
     # 合併同列文字塊後再找
     row_map: dict[int, list] = {}
@@ -172,9 +173,9 @@ def _find_price_header(win) -> tuple[int, int, int, int, int]:
     raise RuntimeError("無法偵測「每個價錢」欄位位置，請確認遊戲畫面正確顯示拍賣列表")
 
 
-def click_sort_by_lowest(win) -> tuple[int, int, int]:
+def click_sort_by_lowest(win, item_type: int = 0) -> tuple[int, int, int]:
     """點擊「每個價錢」欄位標題排序，回傳 (col_x_min, col_x_max, row_y_min)。"""
-    cx, cy, x_min, x_max, y_min = _find_price_header(win)
+    cx, cy, x_min, x_max, y_min = _find_price_header(win, item_type)
     pyautogui.click(win.left + cx, win.top + cy)
     logger.debug(f"  已點擊每個價錢排序 ({cx}, {cy})")
     time.sleep(AFTER_SORT_DELAY)
@@ -243,10 +244,11 @@ def read_equipment_price(win, cx: int, y_min: int) -> int | None:
     cx     : 每個價錢欄位中心 x（相對視窗左上角）
     y_min  : 列表資料起始 y（= 欄位標題中心 y + 20）
     """
-    # 點擊第一筆資料行（假設行高約 30px，第一行中心在 y_min + 15）
-    first_row_y = y_min + 15
-    pyautogui.click(win.left + cx, win.top + first_row_y)
-    logger.debug(f"  已點擊第一筆裝備 ({cx}, {first_row_y})")
+    # 用視窗左側（道具名稱欄）點擊，避免誤觸價格欄位 header 觸發第二次排序
+    row_x = win.width // 4
+    first_row_y = y_min + EQUIP_FIRST_ROW_OFFSET
+    logger.info(f"  點擊第一筆裝備 → 視窗座標 ({row_x}, {first_row_y})，offset={EQUIP_FIRST_ROW_OFFSET}")
+    pyautogui.click(win.left + row_x, win.top + first_row_y)
     time.sleep(AFTER_ROW_CLICK_DELAY)
 
     # 擷取詳情面板（列表下方，跳過列表本身約 200px）
@@ -293,7 +295,7 @@ def verify_price_header(win) -> None:
     """
     global _search_box_cache, _price_header_cache
     _search_box_cache = None
-    _price_header_cache = None
+    _price_header_cache = {}
 
     logger.info("  偵測介面元素（搜尋框 + 每個價錢欄位）...")
     img, _, _ = _capture_full(win)
@@ -318,7 +320,6 @@ def verify_price_header(win) -> None:
             cy = int((bbox[0][1] + bbox[2][1]) / 2)
             cx = (x1 + x2) // 2
             pad = max(60, (x2 - x1) // 2)
-            _price_header_cache = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
             logger.info(f"  每個價錢欄位：center=({cx},{cy})，擷取區間 x=[{max(0, x1-pad)},{x2+pad}]")
             return
 
@@ -328,7 +329,7 @@ def verify_price_header(win) -> None:
 def scrape_item(win, item_name: str, item_type: int = 1) -> int | None:
     """搜尋單一商品並回傳最低單價。裝備類型使用詳情面板讀價。"""
     search_item(win, item_name)
-    cx, cy, x_min, x_max, y_min = _find_price_header(win)
+    cx, cy, x_min, x_max, y_min = _find_price_header(win, item_type)
     pyautogui.click(win.left + cx, win.top + cy)
     logger.debug(f"  已點擊每個價錢排序 ({cx}, {cy})")
     time.sleep(AFTER_SORT_DELAY)

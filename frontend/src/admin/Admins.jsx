@@ -26,7 +26,7 @@ export default function Admins() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setAdmins(await listAdmins()) }
+    try { setAdmins((await listAdmins()).data || []) }
     finally { setLoading(false) }
   }, [])
 

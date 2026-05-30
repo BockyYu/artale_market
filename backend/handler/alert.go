@@ -21,7 +21,7 @@ func (h *AlertHandler) List(c *gin.Context) {
 		respInternal(c, err)
 		return
 	}
-	respOK(c, alerts)
+	respOK(c, gin.H{"data": alerts})
 }
 
 func (h *AlertHandler) Create(c *gin.Context) {
@@ -44,6 +44,38 @@ func (h *AlertHandler) Delete(c *gin.Context) {
 		return
 	}
 	respDeleted(c)
+}
+
+// ListBotItems 回傳所有啟用提醒的道具清單（bot 專用，不需驗證）
+func (h *AlertHandler) ListBotItems(c *gin.Context) {
+	alerts, err := h.svc.List()
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+
+	seen := map[uint]bool{}
+	type botItem struct {
+		ItemID   uint   `json:"item_id"`
+		ItemName string `json:"item_name"`
+		ItemType int    `json:"item_type"`
+	}
+	var items []botItem
+	for _, a := range alerts {
+		if !a.IsActive || seen[a.ItemID] {
+			continue
+		}
+		seen[a.ItemID] = true
+		items = append(items, botItem{
+			ItemID:   a.ItemID,
+			ItemName: a.Item.Name,
+			ItemType: int(a.Item.ItemType),
+		})
+	}
+	if items == nil {
+		items = []botItem{}
+	}
+	respOK(c, gin.H{"data": items})
 }
 
 func (h *AlertHandler) ToggleActive(c *gin.Context) {

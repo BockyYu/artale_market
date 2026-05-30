@@ -54,7 +54,7 @@ func (h *AdminHandler) List(c *gin.Context) {
 		respInternal(c, err)
 		return
 	}
-	respOK(c, admins)
+	respOK(c, gin.H{"data": admins})
 }
 
 func (h *AdminHandler) Create(c *gin.Context) {

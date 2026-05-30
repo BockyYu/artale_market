@@ -22,7 +22,7 @@ export default function NotifyBots() {
     setLoading(true)
     try {
       const data = await listBots()
-      setBots(data || [])
+      setBots(data?.data || [])
     } catch (err) {
       alert(err.message)
     } finally {

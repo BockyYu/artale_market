@@ -19,7 +19,7 @@ import time
 import schedule
 
 from api_client import fetch_items, record_price
-from config import BETWEEN_ITEMS_DELAY, SCHEDULE_TIME
+from config import BETWEEN_ITEMS_DELAY, SCHEDULE_TIME, SCHEDULE_INTERVAL_MINUTES
 from scraper import get_game_window, scrape_item, verify_price_header
 
 logging.basicConfig(
@@ -64,8 +64,9 @@ def run(dry_run: bool = False) -> None:
     logger.info(f"共 {len(items)} 個商品待抓取")
 
     ok, fail = 0, []
+    total = len(items)
 
-    for item in items:
+    for idx, item in enumerate(items, 1):
         name = item.get("item_name", "")
         item_id = item.get("item_id")
 
@@ -73,26 +74,26 @@ def run(dry_run: bool = False) -> None:
             continue
 
         item_type = item.get("item_type", 1)
-        logger.info(f"▶ {name}")
         try:
             price = scrape_item(win, name, item_type)
 
             if price is None:
-                logger.warning(f"  找不到價格，跳過")
+                logger.warning(f"▶ [{idx}/{total}] {name} → 找不到價格，跳過")
                 fail.append(name)
             else:
-                logger.info(f"  最低單價：{price:,}")
-                if not dry_run:
-                    success = record_price(item_id, price)
-                    if success:
-                        logger.info("  已寫入 DB")
+                if dry_run:
+                    logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 模擬模式，不寫入")
+                    ok += 1
+                else:
+                    if record_price(item_id, price):
+                        logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 已寫入 DB")
+                        ok += 1
                     else:
-                        logger.warning("  寫入 DB 失敗")
+                        logger.warning(f"▶ [{idx}/{total}] {name} → {price:,} → 寫入 DB 失敗")
                         fail.append(name)
-                ok += 1
 
         except Exception as e:
-            logger.error(f"  錯誤：{e}")
+            logger.error(f"▶ [{idx}/{total}] {name} → 錯誤：{e}")
             fail.append(name)
 
         time.sleep(BETWEEN_ITEMS_DELAY)
@@ -128,6 +129,8 @@ def debug_ocr() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Artale 拍賣場自動抓價腳本")
     parser.add_argument("--now", action="store_true", help="立即執行一次，不進入排程")
+    parser.add_argument("--interval", action="store_true",
+                        help=f"間隔模式：每 {SCHEDULE_INTERVAL_MINUTES} 分鐘自動執行一次")
     parser.add_argument("--time", default=SCHEDULE_TIME, metavar="HH:MM",
                         help=f"每日執行時間（預設 {SCHEDULE_TIME}）")
     parser.add_argument("--dry-run", action="store_true",
@@ -144,6 +147,19 @@ def main() -> None:
 
     if args.now:
         run(dry_run=dry_run)
+        return
+
+    if args.interval:
+        logger.info(f"間隔模式：每 {SCHEDULE_INTERVAL_MINUTES} 分鐘自動執行")
+        logger.info("按 Ctrl+C 停止")
+        run(dry_run=dry_run)
+        schedule.every(SCHEDULE_INTERVAL_MINUTES).minutes.do(run, dry_run=dry_run)
+        try:
+            while True:
+                schedule.run_pending()
+                time.sleep(30)
+        except KeyboardInterrupt:
+            logger.info("已停止排程")
         return
 
     run_time: str = args.time
