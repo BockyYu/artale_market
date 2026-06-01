@@ -17,6 +17,8 @@ type PriceService interface {
 	GetHistory(itemID uint) ([]model.PriceRecord, error)
 	GetAllHistory(itemID uint) ([]model.PriceRecord, error)
 	GetPriceHistories(itemID uint) ([]model.PriceHistory, error)
+	DeletePriceHistory(id uint) error
+	TogglePriceHistoryHidden(id uint, isHidden bool) error
 }
 
 type priceService struct {
@@ -203,6 +205,14 @@ func (svc *priceService) Record(itemID uint, price float64, date string, source 
 
 func (svc *priceService) GetPriceHistories(itemID uint) ([]model.PriceHistory, error) {
 	return svc.historyRepo.FindByItem(itemID)
+}
+
+func (svc *priceService) DeletePriceHistory(id uint) error {
+	return svc.historyRepo.Delete(id)
+}
+
+func (svc *priceService) TogglePriceHistoryHidden(id uint, isHidden bool) error {
+	return svc.historyRepo.ToggleHidden(id, isHidden)
 }
 
 func (svc *priceService) GetHistory(itemID uint) ([]model.PriceRecord, error) {

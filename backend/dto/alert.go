@@ -6,3 +6,9 @@ type CreateAlertReq struct {
 	BotID          *uint   `json:"bot_id"`
 	Note           string  `json:"note"`
 }
+
+type UpdateAlertReq struct {
+	ThresholdPrice float64 `json:"threshold_price" binding:"required,gt=0"`
+	BotID          *uint   `json:"bot_id"`
+	Note           string  `json:"note"`
+}

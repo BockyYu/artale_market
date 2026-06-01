@@ -6,11 +6,13 @@
 
 使用方式：
   python bot.py
+  python bot.py --equip-region 1427,412,1713,501 --default-region 1722,415,1975,503
 
 設定方式（config.py 或環境變數）：
   SCHEDULE_INTERVAL_MINUTES  掃描間隔（分鐘，預設 5）
 """
 
+import argparse
 import logging
 import sys
 import time
@@ -35,8 +37,10 @@ logger = logging.getLogger(__name__)
 
 
 class AlertBot:
-    def __init__(self) -> None:
+    def __init__(self, equip_region=None, default_region=None) -> None:
         self._win = None
+        self._equip_region = equip_region
+        self._default_region = default_region
 
     # ------------------------------------------------------------------
     # 私有：API 操作
@@ -101,15 +105,22 @@ class AlertBot:
 
         total = len(items)
         for idx, item in enumerate(items, 1):
-            name      = item.get("item_name", "")
-            item_id   = item.get("item_id")
-            item_type = item.get("item_type", 1)
+            name         = item.get("item_name", "")
+            item_id      = item.get("item_id")
+            item_type    = item.get("item_type", 1)
+            search_mode  = item.get("search_mode", 1)
+            english_name = item.get("english_name", "")
+            search_name  = english_name if search_mode == 2 and english_name else name
 
             if not name or item_id is None:
                 continue
 
+            if search_name != name:
+                logger.info(f"  使用英文名稱查詢：{search_name}")
             try:
-                price = scrape_item(self._win, name, item_type)
+                price = scrape_item(self._win, search_name, item_type,
+                                   equip_region=self._equip_region,
+                                   default_region=self._default_region)
 
                 if price is None:
                     logger.warning(f"▶ [{idx}/{total}] {name} → 找不到價格，跳過")
@@ -157,5 +168,22 @@ class AlertBot:
             logger.info("[Bot] 已停止")
 
 
+def _parse_region(s: str) -> tuple[int, int, int, int]:
+    parts = [int(v.strip()) for v in s.split(",")]
+    if len(parts) != 4:
+        raise ValueError(f"region 格式必須是 x1,y1,x2,y2，收到：{s}")
+    return tuple(parts)  # type: ignore
+
+
 if __name__ == "__main__":
-    AlertBot().start()
+    parser = argparse.ArgumentParser(description="Artale 提醒道具掃價 Bot")
+    parser.add_argument("--equip-region", default=None, metavar="x1,y1,x2,y2",
+                        help="覆蓋裝備價格擷取區域，例如 1427,412,1713,501")
+    parser.add_argument("--default-region", default=None, metavar="x1,y1,x2,y2",
+                        help="覆蓋卷軸/技能書價格擷取區域，例如 1722,415,1975,503")
+    args = parser.parse_args()
+
+    equip_region = _parse_region(args.equip_region) if args.equip_region else None
+    default_region = _parse_region(args.default_region) if args.default_region else None
+
+    AlertBot(equip_region=equip_region, default_region=default_region).start()

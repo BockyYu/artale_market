@@ -118,30 +118,29 @@ func (r *itemRepo) FindPage(pcts []int, categories []string, itemTypes []int, so
 		return q
 	}
 
-	if err := applyFilters(r.db.Model(&model.Item{})).Count(&total).Error; err != nil {
+	hasToday := r.db.Model(&model.Item{}).
+		Joins("JOIN price_records pr_exists ON pr_exists.item_id = items.id AND pr_exists.recorded_date = ?", date)
+	if err := applyFilters(hasToday).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	q := applyFilters(r.db.Model(&model.Item{}))
+	q := applyFilters(r.db.Model(&model.Item{})).
+		Joins("JOIN price_records pr_exists ON pr_exists.item_id = items.id AND pr_exists.recorded_date = ?", date)
 
 	ref, _ := time.Parse("2006-01-02", date)
 	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
 
 	switch sortBy {
 	case "price_desc":
-		q = q.Joins("LEFT JOIN price_records pr_s ON pr_s.item_id = items.id AND pr_s.recorded_date = ?", date).
-			Order("CASE WHEN pr_s.price IS NULL THEN 1 ELSE 0 END, pr_s.price DESC")
+		q = q.Order("pr_exists.price DESC")
 	case "price_asc":
-		q = q.Joins("LEFT JOIN price_records pr_s ON pr_s.item_id = items.id AND pr_s.recorded_date = ?", date).
-			Order("CASE WHEN pr_s.price IS NULL THEN 1 ELSE 0 END, pr_s.price ASC")
+		q = q.Order("pr_exists.price ASC")
 	case "change_desc":
-		q = q.Joins("LEFT JOIN price_records pr_t ON pr_t.item_id = items.id AND pr_t.recorded_date = ?", date).
-			Joins("LEFT JOIN price_records pr_y ON pr_y.item_id = items.id AND pr_y.recorded_date = ?", yesterday).
-			Order("CASE WHEN pr_t.price IS NULL OR pr_y.price IS NULL OR pr_y.price = 0 THEN 1 ELSE 0 END, (pr_t.price - pr_y.price) / pr_y.price DESC")
+		q = q.Joins("LEFT JOIN price_records pr_y ON pr_y.item_id = items.id AND pr_y.recorded_date = ?", yesterday).
+			Order("CASE WHEN pr_y.price IS NULL OR pr_y.price = 0 THEN 1 ELSE 0 END, (pr_exists.price - pr_y.price) / pr_y.price DESC")
 	case "change_asc":
-		q = q.Joins("LEFT JOIN price_records pr_t ON pr_t.item_id = items.id AND pr_t.recorded_date = ?", date).
-			Joins("LEFT JOIN price_records pr_y ON pr_y.item_id = items.id AND pr_y.recorded_date = ?", yesterday).
-			Order("CASE WHEN pr_t.price IS NULL OR pr_y.price IS NULL OR pr_y.price = 0 THEN 1 ELSE 0 END, (pr_t.price - pr_y.price) / pr_y.price ASC")
+		q = q.Joins("LEFT JOIN price_records pr_y ON pr_y.item_id = items.id AND pr_y.recorded_date = ?", yesterday).
+			Order("CASE WHEN pr_y.price IS NULL OR pr_y.price = 0 THEN 1 ELSE 0 END, (pr_exists.price - pr_y.price) / pr_y.price ASC")
 	case "percentage_asc":
 		q = q.Order("items.percentage ASC, items.name ASC")
 	case "percentage_desc":
@@ -159,7 +158,8 @@ func (r *itemRepo) FindPage(pcts []int, categories []string, itemTypes []int, so
 
 func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
 	var total int64
-	countQ := r.db.Model(&model.Item{}).Where("item_type = ?", model.ItemTypeScroll)
+	countQ := r.db.Model(&model.Item{}).Where("item_type = ?", model.ItemTypeScroll).
+		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
 	if len(pcts) > 0 {
 		countQ = countQ.Where("percentage IN ?", pcts)
 	}
@@ -172,7 +172,7 @@ func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string
 
 	q := r.db.Model(&model.Item{}).
 		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_yesterday.created_at AS yesterday_created_at, pr_yesterday.updated_at AS yesterday_updated_at, pr_3days.price AS three_days_ago_price, (pr_today.price - pr_yesterday.price) / NULLIF(pr_yesterday.price, 0) AS change_pct`).
-		Joins("LEFT JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
+		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
 		Where("items.item_type = ?", model.ItemTypeScroll)
 
@@ -212,7 +212,8 @@ func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string
 
 func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
 	var total int64
-	countQ := r.db.Model(&model.Item{}).Where("item_type = ?", model.ItemTypeSkillBook)
+	countQ := r.db.Model(&model.Item{}).Where("item_type = ?", model.ItemTypeSkillBook).
+		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
 	if len(categories) > 0 {
 		countQ = countQ.Where("category IN ?", categories)
 	}
@@ -222,7 +223,7 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 
 	q := r.db.Model(&model.Item{}).
 		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_yesterday.created_at AS yesterday_created_at, pr_yesterday.updated_at AS yesterday_updated_at, pr_3days.price AS three_days_ago_price, (pr_today.price - pr_yesterday.price) / NULLIF(pr_yesterday.price, 0) AS change_pct`).
-		Joins("LEFT JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
+		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
 		Where("items.item_type = ?", model.ItemTypeSkillBook)
 

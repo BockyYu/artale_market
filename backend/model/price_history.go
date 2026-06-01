@@ -8,5 +8,6 @@ type PriceHistory struct {
 	ItemID     uint      `json:"item_id"     gorm:"index:idx_ph_item_time,priority:1"`
 	Price      float64   `json:"price"`
 	Source     string    `json:"source"      gorm:"default:scraper"` // scraper / admin
+	IsHidden   bool      `json:"is_hidden"   gorm:"default:false"`
 	RecordedAt time.Time `json:"recorded_at" gorm:"index:idx_ph_item_time,priority:2;autoCreateTime"`
 }

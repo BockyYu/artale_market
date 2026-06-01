@@ -17,6 +17,7 @@ import (
 type AlertService interface {
 	List() ([]model.PriceAlert, error)
 	Create(itemID uint, botID *uint, threshold float64, note string) (*model.PriceAlert, error)
+	Update(id uint, botID *uint, threshold float64, note string) error
 	Delete(id uint) error
 	ToggleActive(id uint, isActive bool) error
 	CheckAndNotify(itemID uint, itemName string, price float64)
@@ -46,6 +47,15 @@ func (s *alertService) Create(itemID uint, botID *uint, threshold float64, note 
 		return nil, err
 	}
 	return alert, nil
+}
+
+func (s *alertService) Update(id uint, botID *uint, threshold float64, note string) error {
+	fields := map[string]any{
+		"threshold_price": threshold,
+		"bot_id":          botID,
+		"note":            note,
+	}
+	return s.alertRepo.Update(id, fields)
 }
 
 func (s *alertService) Delete(id uint) error {

@@ -125,3 +125,26 @@ func (h *PriceHandler) AdminGetPriceHistories(c *gin.Context) {
 	}
 	respOK(c, records)
 }
+
+func (h *PriceHandler) DeletePriceHistory(c *gin.Context) {
+	if err := h.svc.DeletePriceHistory(parseID(c)); err != nil {
+		respInternal(c, err)
+		return
+	}
+	respDeleted(c)
+}
+
+func (h *PriceHandler) TogglePriceHistoryHidden(c *gin.Context) {
+	var req struct {
+		IsHidden bool `json:"is_hidden"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	if err := h.svc.TogglePriceHistoryHidden(parseID(c), req.IsHidden); err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, gin.H{"message": "updated"})
+}

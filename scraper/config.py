@@ -28,6 +28,11 @@ BETWEEN_ITEMS_DELAY = float(os.getenv("BETWEEN_ITEMS_DELAY", "3.0"))
 # 點擊裝備列表第一筆後，等待詳情面板載入的時間
 AFTER_ROW_CLICK_DELAY = float(os.getenv("AFTER_ROW_CLICK_DELAY", "1.0"))
 
-# 裝備列表第一筆資料行的 y 偏移（相對於欄位標題下緣），單位：像素
-# 如果一直點到第 2、3 排，調小這個值（例如 5）
-EQUIP_FIRST_ROW_OFFSET = int(os.getenv("EQUIP_FIRST_ROW_OFFSET", "8"))
+# 價格欄位擷取區域（視窗相對座標，由 --track-mouse 校準）
+# 格式：x1,y1,x2,y2
+# 裝備類型（左側欄）
+_equip_region = os.getenv("PRICE_REGION_EQUIP", "1427,412,1713,501").split(",")
+PRICE_REGION_EQUIP: tuple[int, int, int, int] = tuple(int(v) for v in _equip_region)  # type: ignore
+# 一般道具（卷軸 / 技能書，右側欄）
+_default_region = os.getenv("PRICE_REGION_DEFAULT", "1722,415,1975,503").split(",")
+PRICE_REGION_DEFAULT: tuple[int, int, int, int] = tuple(int(v) for v in _default_region)  # type: ignore

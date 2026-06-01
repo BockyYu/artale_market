@@ -19,10 +19,10 @@ import pyperclip
 from PIL import Image
 
 from config import (
-    AFTER_ROW_CLICK_DELAY,
     AFTER_SEARCH_DELAY,
     AFTER_SORT_DELAY,
-    EQUIP_FIRST_ROW_OFFSET,
+    PRICE_REGION_DEFAULT,
+    PRICE_REGION_EQUIP,
     WINDOW_TITLE,
 )
 
@@ -38,7 +38,9 @@ _ITEM_TYPE_EQUIP = 6
 _search_box_cache: tuple[int, int] | None = None
 
 # 「每個價錢」欄位快取，以 item_type 為 key
+# key=-1 是 verify_price_header 啟動時偵測的通用快取，供各 item_type 初次使用
 _price_header_cache: dict[int, tuple[int, int, int, int, int]] = {}
+_UNIVERSAL_CACHE_KEY = -1
 
 
 def _get_reader() -> easyocr.Reader:
@@ -146,6 +148,11 @@ def _find_price_header(win, item_type: int = 0) -> tuple[int, int, int, int, int
     global _price_header_cache
     if item_type in _price_header_cache:
         return _price_header_cache[item_type]
+    # 沿用 verify_price_header 啟動時的通用偵測，避免重複 OCR（~12s）
+    if _UNIVERSAL_CACHE_KEY in _price_header_cache:
+        _price_header_cache[item_type] = _price_header_cache[_UNIVERSAL_CACHE_KEY]
+        logger.info(f"  使用啟動快取欄位座標 (item_type={item_type})")
+        return _price_header_cache[item_type]
 
     logger.info("  自動偵測「每個價錢」欄位位置...")
     img, _, _ = _capture_full(win)
@@ -238,30 +245,25 @@ def read_lowest_price(win, x_min: int, x_max: int, y_min: int) -> int | None:
     return price
 
 
-def read_equipment_price(win, cx: int, y_min: int) -> int | None:
-    """
-    點擊排序後第一筆裝備，從下方詳情面板讀取單價。
-    cx     : 每個價錢欄位中心 x（相對視窗左上角）
-    y_min  : 列表資料起始 y（= 欄位標題中心 y + 20）
-    """
-    # 用視窗左側（道具名稱欄）點擊，避免誤觸價格欄位 header 觸發第二次排序
-    row_x = win.width // 4
-    first_row_y = y_min + EQUIP_FIRST_ROW_OFFSET
-    logger.info(f"  點擊第一筆裝備 → 視窗座標 ({row_x}, {first_row_y})，offset={EQUIP_FIRST_ROW_OFFSET}")
-    pyautogui.click(win.left + row_x, win.top + first_row_y)
-    time.sleep(AFTER_ROW_CLICK_DELAY)
-
-    # 擷取詳情面板（列表下方，跳過列表本身約 200px）
-    detail_y = y_min + 200
-    img = _capture_column(win, 0, win.width, detail_y)
+def read_price_from_region(win, x1: int, y1: int, x2: int, y2: int) -> int | None:
+    """從固定視窗相對區域截圖並 OCR 讀取最低價格。"""
+    with mss.MSS() as sct:
+        region = {
+            "left": win.left + x1,
+            "top": win.top + y1,
+            "width": x2 - x1,
+            "height": y2 - y1,
+        }
+        shot = sct.grab(region)
+    img = np.array(Image.frombytes("RGB", shot.size, shot.rgb))
     results = _get_reader().readtext(img)
 
     row_map: dict[int, list[tuple[int, int, str]]] = {}
     for bbox, text, _conf in results:
         cy = int((bbox[0][1] + bbox[2][1]) / 2)
-        cx_frag = int((bbox[0][0] + bbox[2][0]) / 2)
+        cx = int((bbox[0][0] + bbox[2][0]) / 2)
         row_key = round(cy / 12) * 12
-        row_map.setdefault(row_key, []).append((cx_frag, cy, text))
+        row_map.setdefault(row_key, []).append((cx, cy, text))
 
     candidates: list[tuple[int, int]] = []
     for row_key in sorted(row_map.keys()):
@@ -275,12 +277,12 @@ def read_equipment_price(win, cx: int, y_min: int) -> int | None:
             candidates.append((cy, price))
 
     if not candidates:
-        logger.warning("  無法讀取裝備詳情價格")
+        logger.warning("  無法讀取任何價格數字")
         return None
 
     candidates.sort(key=lambda t: t[0])
     price = candidates[0][1]
-    logger.debug(f"  裝備詳情最低價: {price:,}")
+    logger.debug(f"  讀取到最低價: {price:,}")
     return price
 
 
@@ -320,20 +322,27 @@ def verify_price_header(win) -> None:
             cy = int((bbox[0][1] + bbox[2][1]) / 2)
             cx = (x1 + x2) // 2
             pad = max(60, (x2 - x1) // 2)
+            _price_header_cache[_UNIVERSAL_CACHE_KEY] = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
             logger.info(f"  每個價錢欄位：center=({cx},{cy})，擷取區間 x=[{max(0, x1-pad)},{x2+pad}]")
             return
 
     raise RuntimeError("無法偵測「每個價錢」欄位，請確認遊戲畫面正確顯示拍賣列表")
 
 
-def scrape_item(win, item_name: str, item_type: int = 1) -> int | None:
-    """搜尋單一商品並回傳最低單價。裝備類型使用詳情面板讀價。"""
+def scrape_item(
+    win,
+    item_name: str,
+    item_type: int = 1,
+    equip_region: tuple[int, int, int, int] | None = None,
+    default_region: tuple[int, int, int, int] | None = None,
+) -> int | None:
+    """搜尋單一商品並回傳最低單價。使用固定校準區域讀價，不需點擊列表行。"""
     search_item(win, item_name)
-    cx, cy, x_min, x_max, y_min = _find_price_header(win, item_type)
+    cx, cy, _, _, _ = _find_price_header(win, item_type)
     pyautogui.click(win.left + cx, win.top + cy)
     logger.debug(f"  已點擊每個價錢排序 ({cx}, {cy})")
     time.sleep(AFTER_SORT_DELAY)
 
     if item_type == _ITEM_TYPE_EQUIP:
-        return read_equipment_price(win, cx, y_min)
-    return read_lowest_price(win, x_min, x_max, y_min)
+        return read_price_from_region(win, *(equip_region or PRICE_REGION_EQUIP))
+    return read_price_from_region(win, *(default_region or PRICE_REGION_DEFAULT))

@@ -40,10 +40,13 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.PATCH("/items/:id/track", d.Item.SetTracked)
 		auth.GET("/items/:id/prices", d.Price.AdminGetHistory)
 		auth.GET("/items/:id/histories", d.Price.AdminGetPriceHistories)
+		auth.DELETE("/histories/:id", d.Price.DeletePriceHistory)
+		auth.PATCH("/histories/:id/hidden", d.Price.TogglePriceHistoryHidden)
 
 		// 價格提醒
 		auth.GET("/alerts", d.Alert.List)
 		auth.POST("/alerts", d.Alert.Create)
+		auth.PUT("/alerts/:id", d.Alert.Update)
 		auth.DELETE("/alerts/:id", d.Alert.Delete)
 		auth.PATCH("/alerts/:id/active", d.Alert.ToggleActive)
 

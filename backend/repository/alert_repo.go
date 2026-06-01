@@ -10,6 +10,7 @@ import (
 type AlertRepository interface {
 	List() ([]model.PriceAlert, error)
 	Create(alert *model.PriceAlert) error
+	Update(id uint, fields map[string]any) error
 	Delete(id uint) error
 	ToggleActive(id uint, isActive bool) error
 	FindActiveByItem(itemID uint) ([]model.PriceAlert, error)
@@ -33,6 +34,10 @@ func (r *alertRepository) List() ([]model.PriceAlert, error) {
 
 func (r *alertRepository) Create(alert *model.PriceAlert) error {
 	return r.db.Create(alert).Error
+}
+
+func (r *alertRepository) Update(id uint, fields map[string]any) error {
+	return r.db.Model(&model.PriceAlert{}).Where("id = ?", id).Updates(fields).Error
 }
 
 func (r *alertRepository) Delete(id uint) error {

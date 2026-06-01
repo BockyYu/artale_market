@@ -126,6 +126,20 @@ export async function getItemHistories(id) {
   return handleResponse(res)
 }
 
+export async function deletePriceHistory(id) {
+  const res = await fetch(`${BASE}/histories/${id}`, { method: 'DELETE', headers: authHeaders() })
+  return handleResponse(res)
+}
+
+export async function togglePriceHistoryHidden(id, isHidden) {
+  const res = await fetch(`${BASE}/histories/${id}/hidden`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ is_hidden: isHidden }),
+  })
+  return handleResponse(res)
+}
+
 export async function updateItem(id, data) {
   const res = await fetch(`${BASE}/items/${id}`, {
     method: 'PUT',

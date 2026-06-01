@@ -38,6 +38,19 @@ func (h *AlertHandler) Create(c *gin.Context) {
 	respOK(c, alert)
 }
 
+func (h *AlertHandler) Update(c *gin.Context) {
+	var req dto.UpdateAlertReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	if err := h.svc.Update(parseID(c), req.BotID, req.ThresholdPrice, req.Note); err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, gin.H{"message": "updated"})
+}
+
 func (h *AlertHandler) Delete(c *gin.Context) {
 	if err := h.svc.Delete(parseID(c)); err != nil {
 		respInternal(c, err)
@@ -56,9 +69,11 @@ func (h *AlertHandler) ListBotItems(c *gin.Context) {
 
 	seen := map[uint]bool{}
 	type botItem struct {
-		ItemID   uint   `json:"item_id"`
-		ItemName string `json:"item_name"`
-		ItemType int    `json:"item_type"`
+		ItemID      uint   `json:"item_id"`
+		ItemName    string `json:"item_name"`
+		EnglishName string `json:"english_name"`
+		SearchMode  int    `json:"search_mode"`
+		ItemType    int    `json:"item_type"`
 	}
 	var items []botItem
 	for _, a := range alerts {
@@ -67,9 +82,11 @@ func (h *AlertHandler) ListBotItems(c *gin.Context) {
 		}
 		seen[a.ItemID] = true
 		items = append(items, botItem{
-			ItemID:   a.ItemID,
-			ItemName: a.Item.Name,
-			ItemType: int(a.Item.ItemType),
+			ItemID:      a.ItemID,
+			ItemName:    a.Item.Name,
+			EnglishName: a.Item.EnglishName,
+			SearchMode:  a.Item.SearchMode,
+			ItemType:    int(a.Item.ItemType),
 		})
 	}
 	if items == nil {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listItems, listItemCategories, createItem, updateItem, updateItemTrack, getItemHistories, recordItemPrice } from './api'
+import { listItems, listItemCategories, createItem, updateItem, updateItemTrack, getItemHistories, togglePriceHistoryHidden, recordItemPrice } from './api'
 
 const EMPTY_FORM = { name: '', english_name: '', search_mode: 1, item_type: 1, category: '', percentage: 0, description: '', track_priority: 0 }
 
@@ -47,6 +47,7 @@ export default function Items() {
   const [historyItem, setHistoryItem] = useState(null)
   const [historyRecords, setHistoryRecords] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyActing, setHistoryActing] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [savingItem, setSavingItem] = useState(false)
@@ -103,6 +104,19 @@ export default function Items() {
       alert(err.message)
     } finally {
       setHistoryLoading(false)
+    }
+  }
+
+  async function handleDeleteHistory(id) {
+    if (!confirm('確定要刪除這筆記錄？')) return
+    setHistoryActing(id)
+    try {
+      await togglePriceHistoryHidden(id, true)
+      setHistoryRecords(prev => prev.filter(r => r.id !== id))
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setHistoryActing(null)
     }
   }
 
@@ -458,6 +472,7 @@ export default function Items() {
                       <th style={{ padding: '12px 16px', fontSize: 18, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>時間</th>
                       <th style={{ padding: '12px 16px', fontSize: 18, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>價格</th>
                       <th style={{ padding: '12px 16px', fontSize: 18, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>來源</th>
+                      <th style={{ padding: '12px 16px', fontSize: 18, fontWeight: 700, color: '#374151', background: '#f8f9fb', textAlign: 'left', position: 'sticky', top: 0 }}>操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -466,6 +481,16 @@ export default function Items() {
                         <td style={{ padding: '12px 16px', fontSize: 17, color: '#374151' }}>{new Date(r.recorded_at).toLocaleString('zh-TW')}</td>
                         <td style={{ padding: '12px 16px', fontSize: 19, color: '#16a34a', fontWeight: 600 }}>{r.price.toLocaleString()}</td>
                         <td style={{ padding: '12px 16px', fontSize: 17, color: '#6b7280' }}>{r.source === 'admin' ? '手動' : '自動'}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <button
+                            className="btn-action"
+                            style={{ color: '#dc2626', opacity: historyActing === r.id ? 0.5 : 1 }}
+                            disabled={historyActing === r.id}
+                            onClick={() => handleDeleteHistory(r.id)}
+                          >
+                            刪除
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

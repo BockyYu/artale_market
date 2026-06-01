@@ -15,7 +15,16 @@ def fetch_items() -> list[dict]:
     if not isinstance(data, list):
         return []
     tracked = [i for i in data if 0 < i.get("track_priority", 0) < 3]
-    return [{"item_id": i["id"], "item_name": i["name"], "item_type": i.get("item_type", 1)} for i in tracked]
+    return [
+        {
+            "item_id": i["id"],
+            "item_name": i["name"],
+            "english_name": i.get("english_name", ""),
+            "search_mode": i.get("search_mode", 1),
+            "item_type": i.get("item_type", 1),
+        }
+        for i in tracked
+    ]
 
 
 def record_price(item_id: int, price: int) -> bool:
