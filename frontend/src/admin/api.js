@@ -14,7 +14,15 @@ function authHeaders() {
 
 async function handleResponse(res) {
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem('admin_token')
+      localStorage.removeItem('admin_user')
+      window.location.href = '/admin'
+      return
+    }
+    throw new Error(data.error || `HTTP ${res.status}`)
+  }
   return data
 }
 
@@ -33,6 +41,25 @@ export async function login(username, password) {
 export function logout() {
   localStorage.removeItem('admin_token')
   localStorage.removeItem('admin_user')
+}
+
+export function getTokenExp() {
+  const token = localStorage.getItem('admin_token')
+  if (!token) return null
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.exp ?? null
+  } catch {
+    return null
+  }
+}
+
+export async function refreshToken() {
+  const res = await fetch(`${BASE}/refresh`, { method: 'POST', headers: authHeaders() })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  localStorage.setItem('admin_token', data.token)
+  return data
 }
 
 export function currentUser() {
@@ -217,6 +244,15 @@ export async function listAlerts() {
 export async function createAlert(data) {
   const res = await fetch(`${BASE}/alerts`, {
     method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse(res)
+}
+
+export async function updateAlert(id, data) {
+  const res = await fetch(`${BASE}/alerts/${id}`, {
+    method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(data),
   })

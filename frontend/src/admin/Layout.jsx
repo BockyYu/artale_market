@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { NavLink, useNavigate, Outlet } from 'react-router-dom'
-import { logout, currentUser } from './api'
+import { logout, currentUser, getTokenExp, refreshToken } from './api'
 import './admin.css'
 
 const NAV = [
@@ -13,6 +14,21 @@ const NAV = [
 export default function Layout() {
   const navigate = useNavigate()
   const user = currentUser()
+
+  useEffect(() => {
+    async function tryRefresh() {
+      const exp = getTokenExp()
+      if (!exp) return
+      const secsLeft = exp - Math.floor(Date.now() / 1000)
+      if (secsLeft <= 0) return
+      if (secsLeft < 4 * 3600) {
+        try { await refreshToken() } catch {}
+      }
+    }
+    tryRefresh()
+    const id = setInterval(tryRefresh, 30 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
 
   function handleLogout() {
     logout()

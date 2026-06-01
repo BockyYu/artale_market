@@ -14,6 +14,7 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 	auth := g.Group("/")
 	auth.Use(middleware.JWTAuth())
 	{
+		auth.POST("/refresh", d.Admin.Refresh)
 		// 管理員帳號管理（需要 admin:manage 權限）
 		auth.GET("/admins", d.Admin.List)
 		auth.POST("/admins", middleware.CasbinAuth(d.Enforcer, "admin", "manage"), d.Admin.Create)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { listAlerts, createAlert, deleteAlert, toggleAlertActive, listItems, listBots } from './api'
+import { listAlerts, createAlert, updateAlert, deleteAlert, toggleAlertActive, listItems, listBots } from './api'
 
 const PLATFORM_LABEL = { tg: 'Telegram', line: 'LINE Notify', dc: 'Discord' }
 const PLATFORM_COLOR = { tg: '#2ca5e0', line: '#06c755', dc: '#5865f2' }
@@ -15,6 +15,9 @@ export default function PriceAlerts() {
   const [creating, setCreating] = useState(false)
   const [toggling, setToggling] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [editingAlert, setEditingAlert] = useState(null)
+  const [editForm, setEditForm] = useState({ thresholdPrice: '', botID: '', note: '' })
+  const [saving, setSaving] = useState(false)
 
   // 道具搜尋 autocomplete
   const [itemSearch, setItemSearch] = useState('')
@@ -117,6 +120,41 @@ export default function PriceAlerts() {
     }
   }
 
+  function handleOpenEdit(a) {
+    setEditingAlert(a)
+    setEditForm({
+      thresholdPrice: Number(a.threshold_price).toLocaleString(),
+      botID: a.bot_id ?? '',
+      note: a.note ?? '',
+    })
+  }
+
+  async function handleUpdate(e) {
+    e.preventDefault()
+    const price = parseFloat(String(editForm.thresholdPrice).replace(/,/g, ''))
+    if (isNaN(price) || price <= 0) {
+      alert('請輸入有效的觸發價格')
+      return
+    }
+    setSaving(true)
+    try {
+      await updateAlert(editingAlert.id, {
+        threshold_price: price,
+        bot_id: editForm.botID ? Number(editForm.botID) : undefined,
+        note: editForm.note,
+      })
+      setAlerts(prev => prev.map(a => a.id === editingAlert.id
+        ? { ...a, threshold_price: price, bot_id: editForm.botID ? Number(editForm.botID) : null, note: editForm.note, bot: editForm.botID ? bots.find(b => b.id === Number(editForm.botID)) ?? a.bot : null }
+        : a
+      ))
+      setEditingAlert(null)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm('確定要刪除這筆提醒？')) return
     setDeleting(id)
@@ -163,7 +201,7 @@ export default function PriceAlerts() {
               <th>備註</th>
               <th>上次觸發</th>
               <th>狀態</th>
-              <th>刪除</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -208,7 +246,14 @@ export default function PriceAlerts() {
                     {a.is_active ? '啟用中' : '已停用'}
                   </button>
                 </td>
-                <td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button
+                    className="btn-action"
+                    style={{ marginRight: 8 }}
+                    onClick={() => handleOpenEdit(a)}
+                  >
+                    編輯
+                  </button>
                   <button
                     className="btn-action"
                     style={{ color: '#dc2626', opacity: deleting === a.id ? 0.5 : 1 }}
@@ -223,6 +268,63 @@ export default function PriceAlerts() {
           </tbody>
         </table>
       </div>
+
+      {editingAlert && (
+        <div className="modal-overlay" onClick={() => setEditingAlert(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>編輯價格提醒</h2>
+            <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>
+              道具：<strong style={{ color: '#374151' }}>{editingAlert.item?.name ?? `#${editingAlert.item_id}`}</strong>
+            </p>
+            <form onSubmit={handleUpdate}>
+              <div className="form-group">
+                <label>觸發價格（低於此價格時通知）*</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="例：1,000,000"
+                  value={editForm.thresholdPrice}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '')
+                    setEditForm(f => ({ ...f, thresholdPrice: raw === '' ? '' : Number(raw).toLocaleString() }))
+                  }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>通知機器人</label>
+                <select
+                  className="search-input"
+                  style={{ width: '100%', maxWidth: '100%' }}
+                  value={editForm.botID}
+                  onChange={e => setEditForm(f => ({ ...f, botID: e.target.value }))}
+                >
+                  <option value="">環境變數 TG（預設）</option>
+                  {bots.map(b => (
+                    <option key={b.id} value={b.id}>
+                      [{PLATFORM_LABEL[b.platform] ?? b.platform}] {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>備註（選填）</label>
+                <input
+                  value={editForm.note}
+                  onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="例：想買的價位"
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-cancel" onClick={() => setEditingAlert(null)}>取消</button>
+                <button type="submit" className="btn-save" disabled={saving}>{saving ? '儲存中...' : '儲存'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showCreate && (
         <div className="modal-overlay">

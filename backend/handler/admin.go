@@ -48,6 +48,25 @@ func (h *AdminHandler) Login(c *gin.Context) {
 	respOK(c, gin.H{"token": tokenStr, "admin": admin})
 }
 
+func (h *AdminHandler) Refresh(c *gin.Context) {
+	adminID := c.GetString("admin_id")
+	username := c.GetString("admin_username")
+	role := c.GetString("admin_role")
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":      adminID,
+		"username": username,
+		"role":     role,
+		"exp":      time.Now().Add(24 * time.Hour).Unix(),
+	})
+	tokenStr, err := token.SignedString(middleware.JwtSecret())
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, gin.H{"token": tokenStr})
+}
+
 func (h *AdminHandler) List(c *gin.Context) {
 	admins, err := h.adminSvc.ListAdmins()
 	if err != nil {
