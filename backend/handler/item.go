@@ -57,7 +57,11 @@ func (h *ItemHandler) Create(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Create(&item); err != nil {
-		respInternal(c, err)
+		if err == service.ErrItemAlreadyExists {
+			respBadRequest(c, err)
+		} else {
+			respInternal(c, err)
+		}
 		return
 	}
 	respCreated(c, item)

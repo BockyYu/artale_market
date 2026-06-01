@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"math"
 	"sort"
 	"time"
@@ -98,7 +99,12 @@ func (s *itemService) GetPriceSummary(id uint) (*model.PriceSummary, error) {
 	return summary, nil
 }
 
+var ErrItemAlreadyExists = errors.New("道具名稱已存在資料庫，不可新增")
+
 func (s *itemService) Create(item *model.Item) error {
+	if existing, err := s.itemRepo.FindByName(item.Name); err == nil && existing != nil {
+		return ErrItemAlreadyExists
+	}
 	return s.itemRepo.Create(item)
 }
 

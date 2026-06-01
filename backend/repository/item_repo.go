@@ -16,6 +16,7 @@ type ItemRepository interface {
 	FindScrollPage(pcts []int, categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
 	FindSkillBookPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
 	FindByID(id uint) (*model.Item, error)
+	FindByName(name string) (*model.Item, error)
 	FindByIDSummary(id uint, today, yesterday, threeDaysAgo string) (*model.PriceSummary, error)
 	FindTracked(date string) ([]model.Item, error)
 	Create(item *model.Item) error
@@ -261,6 +262,14 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 func (r *itemRepo) FindByID(id uint) (*model.Item, error) {
 	var item model.Item
 	if err := r.db.First(&item, id).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *itemRepo) FindByName(name string) (*model.Item, error) {
+	var item model.Item
+	if err := r.db.Where("name ILIKE ?", name).First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
