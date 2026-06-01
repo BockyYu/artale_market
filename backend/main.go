@@ -48,7 +48,7 @@ func main() {
 	alertSvc  := service.NewAlertService(alertRepo)
 	botSvc    := service.NewBotService(botRepo)
 	itemSvc   := service.NewItemService(itemRepo, priceRepo, queryRepo)
-	priceSvc  := service.NewPriceService(itemRepo, priceRepo, priceHistoryRepo, alertSvc)
+	priceSvc  := service.NewPriceService(itemRepo, priceRepo, priceHistoryRepo)
 	querySvc  := service.NewQueryService(queryRepo, itemRepo)
 	adminSvc  := service.NewAdminService(adminRepo)
 	memberSvc := service.NewMemberService(memberRepo)
@@ -65,8 +65,6 @@ func main() {
 		Bot:        handler.NewBotHandler(botSvc),
 		Enforcer:   enforcer,
 	}
-
-	config.StartAlertScheduler(alertRepo, priceRepo, alertSvc)
 
 	r := router.Setup(deps)
 

@@ -25,11 +25,10 @@ type priceService struct {
 	itemRepo    repository.ItemRepository
 	priceRepo   repository.PriceRepository
 	historyRepo repository.PriceHistoryRepository
-	alertSvc    AlertService
 }
 
-func NewPriceService(ir repository.ItemRepository, pr repository.PriceRepository, hr repository.PriceHistoryRepository, alertSvc AlertService) PriceService {
-	return &priceService{itemRepo: ir, priceRepo: pr, historyRepo: hr, alertSvc: alertSvc}
+func NewPriceService(ir repository.ItemRepository, pr repository.PriceRepository, hr repository.PriceHistoryRepository) PriceService {
+	return &priceService{itemRepo: ir, priceRepo: pr, historyRepo: hr}
 }
 
 func (svc *priceService) GetSummary(date string, pcts []int, categories []string, itemTypes []int, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
@@ -167,8 +166,7 @@ func (svc *priceService) GetSkillBookSummary(date string, categories []string, s
 }
 
 func (svc *priceService) Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error) {
-	item, err := svc.itemRepo.FindByID(itemID)
-	if err != nil {
+	if _, err := svc.itemRepo.FindByID(itemID); err != nil {
 		return nil, err
 	}
 
@@ -195,10 +193,6 @@ func (svc *priceService) Record(itemID uint, price float64, date string, source 
 	}
 
 	_ = svc.historyRepo.Create(&model.PriceHistory{ItemID: itemID, Price: price, Source: source})
-
-	if svc.alertSvc != nil {
-		go svc.alertSvc.CheckAndNotify(itemID, item.Name, price)
-	}
 
 	return record, nil
 }

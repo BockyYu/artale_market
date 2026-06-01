@@ -1,10 +1,63 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listBots, createBot, updateBot, deleteBot, toggleBotActive } from './api'
+import { listBots, createBot, updateBot, deleteBot, toggleBotActive, sendBotMessage } from './api'
 
 const PLATFORM_LABEL = { tg: 'Telegram', line: 'LINE Notify', dc: 'Discord' }
 const PLATFORM_COLOR = { tg: '#2ca5e0', line: '#06c755', dc: '#5865f2' }
 
 const EMPTY_FORM = { name: '', platform: 'tg', token: '', chat_id: '' }
+
+function BotForm({ f, setF, isEdit }) {
+  return (
+    <>
+      <div className="form-group">
+        <label>機器人名稱 *</label>
+        <input required value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} placeholder="例：主要通知" />
+      </div>
+      <div className="form-group">
+        <label>平台 *</label>
+        <select
+          className="search-input"
+          style={{ width: '100%', maxWidth: '100%' }}
+          value={f.platform}
+          onChange={e => setF(p => ({ ...p, platform: e.target.value, chat_id: '' }))}
+        >
+          <option value="tg">Telegram</option>
+          <option value="line">LINE Notify</option>
+          <option value="dc">Discord</option>
+        </select>
+      </div>
+      <div className="form-group">
+        <label>
+          {f.platform === 'tg' && 'Bot Token *'}
+          {f.platform === 'line' && 'LINE Notify Token *'}
+          {f.platform === 'dc' && 'Webhook URL *'}
+        </label>
+        <input
+          required={!isEdit}
+          value={f.token}
+          onChange={e => setF(p => ({ ...p, token: e.target.value }))}
+          placeholder={
+            isEdit ? '留空則不修改' :
+            f.platform === 'tg' ? '例：123456789:ABCdef...' :
+            f.platform === 'line' ? 'LINE Notify Access Token' :
+            'https://discord.com/api/webhooks/...'
+          }
+        />
+      </div>
+      {f.platform === 'tg' && (
+        <div className="form-group">
+          <label>Chat ID *</label>
+          <input
+            required={!isEdit}
+            value={f.chat_id}
+            onChange={e => setF(p => ({ ...p, chat_id: e.target.value }))}
+            placeholder="例：-100123456789"
+          />
+        </div>
+      )}
+    </>
+  )
+}
 
 export default function NotifyBots() {
   const [bots, setBots] = useState([])
@@ -17,6 +70,9 @@ export default function NotifyBots() {
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [sendTarget, setSendTarget] = useState(null)
+  const [sendMsg, setSendMsg] = useState('')
+  const [sending, setSending] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -96,61 +152,26 @@ export default function NotifyBots() {
     }
   }
 
+  async function handleSend(e) {
+    e.preventDefault()
+    if (!sendMsg.trim()) return
+    setSending(true)
+    try {
+      await sendBotMessage(sendTarget.id, sendMsg)
+      setSendTarget(null)
+      setSendMsg('')
+      alert('訊息已送出')
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
   function openEdit(bot) {
     setEditingBot(bot)
     setEditForm({ name: bot.name, platform: bot.platform, token: '', chat_id: bot.chat_id })
   }
-
-  const BotForm = ({ f, setF, isEdit }) => (
-    <>
-      <div className="form-group">
-        <label>機器人名稱 *</label>
-        <input required value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} placeholder="例：主要通知" />
-      </div>
-      <div className="form-group">
-        <label>平台 *</label>
-        <select
-          className="search-input"
-          style={{ width: '100%', maxWidth: '100%' }}
-          value={f.platform}
-          onChange={e => setF(p => ({ ...p, platform: e.target.value, chat_id: '' }))}
-        >
-          <option value="tg">Telegram</option>
-          <option value="line">LINE Notify</option>
-          <option value="dc">Discord</option>
-        </select>
-      </div>
-      <div className="form-group">
-        <label>
-          {f.platform === 'tg' && 'Bot Token *'}
-          {f.platform === 'line' && 'LINE Notify Token *'}
-          {f.platform === 'dc' && 'Webhook URL *'}
-        </label>
-        <input
-          required={!isEdit}
-          value={f.token}
-          onChange={e => setF(p => ({ ...p, token: e.target.value }))}
-          placeholder={
-            isEdit ? '留空則不修改' :
-            f.platform === 'tg' ? '例：123456789:ABCdef...' :
-            f.platform === 'line' ? 'LINE Notify Access Token' :
-            'https://discord.com/api/webhooks/...'
-          }
-        />
-      </div>
-      {f.platform === 'tg' && (
-        <div className="form-group">
-          <label>Chat ID *</label>
-          <input
-            required={!isEdit}
-            value={f.chat_id}
-            onChange={e => setF(p => ({ ...p, chat_id: e.target.value }))}
-            placeholder="例：-100123456789"
-          />
-        </div>
-      )}
-    </>
-  )
 
   return (
     <>
@@ -171,13 +192,12 @@ export default function NotifyBots() {
               <th>平台</th>
               <th>Chat ID</th>
               <th>狀態</th>
-              <th>修改</th>
-              <th>刪除</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr className="empty-row"><td colSpan={7}>載入中...</td></tr>}
-            {!loading && bots.length === 0 && <tr className="empty-row"><td colSpan={7}>尚無機器人</td></tr>}
+            {loading && <tr className="empty-row"><td colSpan={6}>載入中...</td></tr>}
+            {!loading && bots.length === 0 && <tr className="empty-row"><td colSpan={6}>尚無機器人</td></tr>}
             {bots.map(bot => (
               <tr key={bot.id}>
                 <td>{bot.id}</td>
@@ -207,10 +227,15 @@ export default function NotifyBots() {
                     {bot.is_active ? '啟用中' : '已停用'}
                   </button>
                 </td>
-                <td>
-                  <button className="btn-action btn-edit" onClick={() => openEdit(bot)}>修改</button>
-                </td>
-                <td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="btn-action btn-edit" style={{ marginRight: 8 }} onClick={() => openEdit(bot)}>修改</button>
+                  <button
+                    className="btn-action"
+                    style={{ marginRight: 8, color: '#7c3aed' }}
+                    onClick={() => { setSendTarget(bot); setSendMsg('') }}
+                  >
+                    發送訊息
+                  </button>
                   <button
                     className="btn-action"
                     style={{ color: '#dc2626', opacity: deleting === bot.id ? 0.5 : 1 }}
@@ -225,6 +250,36 @@ export default function NotifyBots() {
           </tbody>
         </table>
       </div>
+
+      {sendTarget && (
+        <div className="modal-overlay" onClick={() => setSendTarget(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>發送訊息 — {sendTarget.name}</h2>
+            <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 16 }}>
+              平台：<span style={{ color: PLATFORM_COLOR[sendTarget.platform], fontWeight: 700 }}>
+                {PLATFORM_LABEL[sendTarget.platform] ?? sendTarget.platform}
+              </span>
+            </p>
+            <form onSubmit={handleSend}>
+              <div className="form-group">
+                <label>訊息內容 *</label>
+                <textarea
+                  required
+                  rows={4}
+                  style={{ width: '100%', resize: 'vertical', padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  value={sendMsg}
+                  onChange={e => setSendMsg(e.target.value)}
+                  placeholder="輸入要發送的訊息..."
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-cancel" onClick={() => setSendTarget(null)}>取消</button>
+                <button type="submit" className="btn-save" disabled={sending}>{sending ? '發送中...' : '發送'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showCreate && (
         <div className="modal-overlay">

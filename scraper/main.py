@@ -20,6 +20,7 @@ import schedule
 
 from api_client import fetch_items, record_price
 from config import BETWEEN_ITEMS_DELAY, SCHEDULE_TIME, SCHEDULE_INTERVAL_MINUTES
+from notify import send_message
 from scraper import get_game_window, scrape_item, verify_price_header
 
 logging.basicConfig(
@@ -115,6 +116,12 @@ def run(dry_run: bool = False, equip_region=None, default_region=None) -> None:
     if fail:
         logger.warning(f"失敗項目（{len(fail)} 筆）：{', '.join(fail)}")
     logger.info("=" * 50)
+
+    if not dry_run:
+        msg = f"✅ 抓取完成：{ok}/{len(items)} 筆成功"
+        if fail:
+            msg += f"\n❌ 失敗（{len(fail)} 筆）：{', '.join(fail)}"
+        send_message(msg)
 
 
 def debug_ocr() -> None:

@@ -235,6 +235,15 @@ export async function toggleBotActive(id, isActive) {
   return handleResponse(res)
 }
 
+export async function sendBotMessage(id, message) {
+  const res = await fetch(`${BASE}/bots/${id}/send`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ message }),
+  })
+  return handleResponse(res)
+}
+
 // Price Alerts
 export async function listAlerts() {
   const res = await fetch(`${BASE}/alerts`, { headers: authHeaders() })

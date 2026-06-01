@@ -59,6 +59,38 @@ func (h *BotHandler) Delete(c *gin.Context) {
 	respDeleted(c)
 }
 
+func (h *BotHandler) SendMessage(c *gin.Context) {
+	var req struct {
+		Message string `json:"message" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	if err := h.svc.SendMessage(parseID(c), req.Message); err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, gin.H{"message": "sent"})
+}
+
+// PublicNotify 供 bot.py 呼叫，不需要 JWT，傳入 bot_id 和訊息
+func (h *BotHandler) PublicNotify(c *gin.Context) {
+	var req struct {
+		BotID   uint   `json:"bot_id" binding:"required"`
+		Message string `json:"message" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	if err := h.svc.SendMessage(req.BotID, req.Message); err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, gin.H{"message": "sent"})
+}
+
 func (h *BotHandler) ToggleActive(c *gin.Context) {
 	var req struct {
 		IsActive bool `json:"is_active"`

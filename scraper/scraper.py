@@ -129,13 +129,15 @@ def search_item(win, item_name: str) -> None:
     """在搜尋欄輸入商品名稱並送出。"""
     cx, cy = _find_search_box(win)
     pyautogui.click(win.left + cx, win.top + cy)
-    time.sleep(0.2)
+    time.sleep(0.3)
     pyautogui.hotkey("ctrl", "a")
-    pyperclip.copy(item_name)
-    pyautogui.hotkey("ctrl", "v")
     time.sleep(0.1)
+    pyperclip.copy(item_name)
+    time.sleep(0.1)
+    pyautogui.hotkey("ctrl", "v")
+    time.sleep(0.4)
     pyautogui.press("enter")
-    logger.debug(f"  搜尋送出: {item_name}")
+    logger.info(f"  搜尋送出: {item_name}")
     time.sleep(AFTER_SEARCH_DELAY)
 
 
@@ -292,12 +294,15 @@ def read_price_from_region(win, x1: int, y1: int, x2: int, y2: int) -> int | Non
 
 def verify_price_header(win) -> None:
     """
-    每次執行前呼叫，強制重新截圖並同時偵測搜尋輸入框和「每個價錢」欄位位置。
+    首次呼叫時偵測搜尋框與「每個價錢」欄位位置並快取；
+    後續呼叫若快取已存在則直接沿用，不重複 OCR。
     任一找不到則拋出 RuntimeError，終止本次執行。
     """
     global _search_box_cache, _price_header_cache
-    _search_box_cache = None
-    _price_header_cache = {}
+
+    if _search_box_cache is not None and _UNIVERSAL_CACHE_KEY in _price_header_cache:
+        logger.info("  沿用已快取的介面元素座標")
+        return
 
     logger.info("  偵測介面元素（搜尋框 + 每個價錢欄位）...")
     img, _, _ = _capture_full(win)

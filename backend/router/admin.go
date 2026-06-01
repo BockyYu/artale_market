@@ -57,5 +57,6 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.PUT("/bots/:id", d.Bot.Update)
 		auth.DELETE("/bots/:id", d.Bot.Delete)
 		auth.PATCH("/bots/:id/active", d.Bot.ToggleActive)
+		auth.POST("/bots/:id/send", d.Bot.SendMessage)
 	}
 }

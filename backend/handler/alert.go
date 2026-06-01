@@ -67,27 +67,41 @@ func (h *AlertHandler) ListBotItems(c *gin.Context) {
 		return
 	}
 
-	seen := map[uint]bool{}
+	// 以 item_id 為 key，記錄最低門檻（一個道具可能有多筆 alert）
 	type botItem struct {
-		ItemID      uint   `json:"item_id"`
-		ItemName    string `json:"item_name"`
-		EnglishName string `json:"english_name"`
-		SearchMode  int    `json:"search_mode"`
-		ItemType    int    `json:"item_type"`
+		ItemID         uint    `json:"item_id"`
+		ItemName       string  `json:"item_name"`
+		EnglishName    string  `json:"english_name"`
+		SearchMode     int     `json:"search_mode"`
+		ItemType       int     `json:"item_type"`
+		ThresholdPrice float64 `json:"threshold_price"`
+		BotID          *uint   `json:"bot_id"`
 	}
-	var items []botItem
+	itemMap := map[uint]*botItem{}
 	for _, a := range alerts {
-		if !a.IsActive || seen[a.ItemID] {
+		if !a.IsActive {
 			continue
 		}
-		seen[a.ItemID] = true
-		items = append(items, botItem{
-			ItemID:      a.ItemID,
-			ItemName:    a.Item.Name,
-			EnglishName: a.Item.EnglishName,
-			SearchMode:  a.Item.SearchMode,
-			ItemType:    int(a.Item.ItemType),
-		})
+		if existing, ok := itemMap[a.ItemID]; ok {
+			if a.ThresholdPrice < existing.ThresholdPrice {
+				existing.ThresholdPrice = a.ThresholdPrice
+				existing.BotID = a.BotID
+			}
+		} else {
+			itemMap[a.ItemID] = &botItem{
+				ItemID:         a.ItemID,
+				ItemName:       a.Item.Name,
+				EnglishName:    a.Item.EnglishName,
+				SearchMode:     a.Item.SearchMode,
+				ItemType:       int(a.Item.ItemType),
+				ThresholdPrice: a.ThresholdPrice,
+				BotID:          a.BotID,
+			}
+		}
+	}
+	var items []botItem
+	for _, v := range itemMap {
+		items = append(items, *v)
 	}
 	if items == nil {
 		items = []botItem{}

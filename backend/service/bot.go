@@ -11,6 +11,7 @@ type BotService interface {
 	Update(id uint, name, platform, token, chatID string) error
 	Delete(id uint) error
 	ToggleActive(id uint, isActive bool) error
+	SendMessage(id uint, message string) error
 }
 
 type botService struct {
@@ -57,4 +58,12 @@ func (s *botService) Delete(id uint) error {
 
 func (s *botService) ToggleActive(id uint, isActive bool) error {
 	return s.repo.ToggleActive(id, isActive)
+}
+
+func (s *botService) SendMessage(id uint, message string) error {
+	bot, err := s.repo.FindByID(id)
+	if err != nil {
+		return err
+	}
+	return SendMessage(bot, message)
 }

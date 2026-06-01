@@ -8,3 +8,4 @@ opencv-python
 schedule
 requests
 numpy
+python-dotenv

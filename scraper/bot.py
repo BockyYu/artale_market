@@ -22,6 +22,7 @@ import requests
 import schedule
 
 from config import API_BASE_URL, BETWEEN_ITEMS_DELAY, SCHEDULE_INTERVAL_MINUTES
+from notify import send_message, build_alert_message
 from scraper import get_game_window, scrape_item, verify_price_header
 
 logging.basicConfig(
@@ -105,12 +106,14 @@ class AlertBot:
 
         total = len(items)
         for idx, item in enumerate(items, 1):
-            name         = item.get("item_name", "")
-            item_id      = item.get("item_id")
-            item_type    = item.get("item_type", 1)
-            search_mode  = item.get("search_mode", 1)
-            english_name = item.get("english_name", "")
-            search_name  = english_name if search_mode == 2 and english_name else name
+            name            = item.get("item_name", "")
+            item_id         = item.get("item_id")
+            item_type       = item.get("item_type", 1)
+            search_mode     = item.get("search_mode", 1)
+            english_name    = item.get("english_name", "")
+            threshold_price = item.get("threshold_price", 0)
+            bot_id          = item.get("bot_id")
+            search_name     = english_name if search_mode == 2 and english_name else name
 
             if not name or item_id is None:
                 continue
@@ -133,6 +136,14 @@ class AlertBot:
                         logger.warning(f"▶ [{idx}/{total}] {name} → {price:,} → 寫入 DB 失敗")
                         fail.append(name)
 
+                    if threshold_price > 0 and price <= threshold_price:
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        msg = build_alert_message(name, price, threshold_price, now)
+                        if send_message(msg, bot_id=bot_id):
+                            logger.info(f"  已發送價格通知：{name} → {price:,}")
+                        else:
+                            logger.warning(f"  價格符合門檻但通知發送失敗：{name} → {price:,}（請確認後台提醒有設定通知機器人）")
+
             except Exception as e:
                 logger.error(f"▶ [{idx}/{total}] {name} → 錯誤：{e}")
                 fail.append(name)
@@ -142,6 +153,8 @@ class AlertBot:
         logger.info(f"[Bot] 完成：{ok}/{len(items)} 筆成功")
         if fail:
             logger.warning(f"[Bot] 失敗項目（{len(fail)} 筆）：{', '.join(fail)}")
+            msg = f"⚠️ Bot 掃描完成：{ok}/{len(items)} 筆成功\n❌ 失敗（{len(fail)} 筆）：{', '.join(fail)}"
+            send_message(msg)
 
         next_run = datetime.now() + timedelta(minutes=SCHEDULE_INTERVAL_MINUTES)
         logger.info(f"[Bot] 下次更新時間：{next_run.strftime('%H:%M:%S')}")
