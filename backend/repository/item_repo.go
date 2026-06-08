@@ -80,7 +80,7 @@ func (r *itemRepo) FindAllWithLatestPrice(sortBy, search string, filterType, fil
 		Select("items.*, " +
 			"(SELECT price FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price, " +
 			"(SELECT COALESCE(NULLIF(updated_at, '0001-01-01'), created_at) FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price_at, " +
-			"(SELECT COUNT(*) FROM price_histories WHERE item_id = items.id AND (recorded_at AT TIME ZONE 'Asia/Taipei')::date = '" + today + "') AS today_changes").
+			"(SELECT COUNT(*) FROM price_histories WHERE item_id = items.id AND source = 'admin' AND (recorded_at AT TIME ZONE 'Asia/Taipei')::date = '" + today + "') AS today_changes").
 		Order(order)
 
 	if pageSize > 0 {

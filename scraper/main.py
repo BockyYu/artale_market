@@ -15,12 +15,13 @@ import argparse
 import logging
 import sys
 import time
+from datetime import datetime
 
 import schedule
 
-from api_client import fetch_items, record_price
+from api_client import fetch_items, fetch_unrecorded_items, fetch_alert_map, record_price
 from config import BETWEEN_ITEMS_DELAY, SCHEDULE_TIME, SCHEDULE_INTERVAL_MINUTES
-from notify import send_message
+from notify import send_message, build_alert_message
 from scraper import get_game_window, scrape_item, verify_price_header
 
 logging.basicConfig(
@@ -42,9 +43,10 @@ def _parse_region(s: str) -> tuple[int, int, int, int]:
     return tuple(parts)  # type: ignore
 
 
-def run(dry_run: bool = False, equip_region=None, default_region=None) -> None:
+def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, default_region=None) -> None:
+    mode_label = "（補漏模式）" if fill_missing else ""
     logger.info("=" * 50)
-    logger.info(f"開始抓取{'（模擬模式）' if dry_run else ''}")
+    logger.info(f"開始抓取{'（模擬模式）' if dry_run else ''}{mode_label}")
     logger.info("=" * 50)
 
     try:
@@ -60,16 +62,24 @@ def run(dry_run: bool = False, equip_region=None, default_region=None) -> None:
         return
 
     try:
-        items = fetch_items()
+        if fill_missing:
+            items = fetch_unrecorded_items()
+        else:
+            items = fetch_items()
     except Exception as e:
         logger.error(f"無法取得商品列表: {e}")
         return
 
     if not items:
-        logger.warning("商品列表為空，結束")
+        if fill_missing:
+            logger.info("今天所有追蹤商品都已有價格記錄，無需補漏")
+        else:
+            logger.warning("商品列表為空，結束")
         return
 
     logger.info(f"共 {len(items)} 個商品待抓取")
+
+    alert_map = fetch_alert_map()
 
     ok, fail = 0, []
     total = len(items)
@@ -104,6 +114,18 @@ def run(dry_run: bool = False, equip_region=None, default_region=None) -> None:
                     else:
                         logger.warning(f"▶ [{idx}/{total}] {name} → {price:,} → 寫入 DB 失敗")
                         fail.append(name)
+
+                alert = alert_map.get(item_id)
+                if alert:
+                    threshold = alert["threshold_price"]
+                    bot_id = alert.get("bot_id")
+                    if threshold > 0 and price <= threshold:
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        msg = build_alert_message(name, price, threshold, now)
+                        if send_message(msg, bot_id=bot_id):
+                            logger.info(f"  已發送價格通知：{name} → {price:,}")
+                        else:
+                            logger.warning(f"  價格符合門檻但通知發送失敗：{name} → {price:,}")
 
         except Exception as e:
             logger.error(f"▶ [{idx}/{total}] {name} → 錯誤：{e}")
@@ -199,6 +221,8 @@ def main() -> None:
                         help=f"每日執行時間（預設 {SCHEDULE_TIME}）")
     parser.add_argument("--dry-run", action="store_true",
                         help="模擬模式：只印出價格，不寫入 DB")
+    parser.add_argument("--fill-missing", action="store_true",
+                        help="補漏模式：只抓今天還沒有價格記錄的商品")
     parser.add_argument("--debug-ocr", action="store_true",
                         help="截圖並印出所有 OCR 結果，用於診斷辨識問題")
     parser.add_argument("--debug-pos", nargs=2, type=int, metavar=("X", "Y"),
@@ -212,6 +236,7 @@ def main() -> None:
     args = parser.parse_args()
 
     dry_run: bool = args.dry_run
+    fill_missing: bool = args.fill_missing
     equip_region = _parse_region(args.equip_region) if args.equip_region else None
     default_region = _parse_region(args.default_region) if args.default_region else None
 
@@ -228,15 +253,15 @@ def main() -> None:
         return
 
     if args.now:
-        run(dry_run=dry_run, equip_region=equip_region, default_region=default_region)
+        run(dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region)
         return
 
     if args.interval:
         logger.info(f"間隔模式：每 {SCHEDULE_INTERVAL_MINUTES} 分鐘自動執行")
         logger.info("按 Ctrl+C 停止")
-        run(dry_run=dry_run, equip_region=equip_region, default_region=default_region)
+        run(dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region)
         schedule.every(SCHEDULE_INTERVAL_MINUTES).minutes.do(
-            run, dry_run=dry_run, equip_region=equip_region, default_region=default_region
+            run, dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region
         )
         try:
             while True:
@@ -251,7 +276,7 @@ def main() -> None:
     logger.info("按 Ctrl+C 停止")
 
     schedule.every().day.at(run_time).do(
-        run, dry_run=dry_run, equip_region=equip_region, default_region=default_region
+        run, dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region
     )
 
     try:

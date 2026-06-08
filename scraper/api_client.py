@@ -27,6 +27,44 @@ def fetch_items() -> list[dict]:
     ]
 
 
+def fetch_unrecorded_items() -> list[dict]:
+    """取得今天還沒有價格記錄的追蹤商品。"""
+    r = requests.get(f"{API_BASE_URL}/api/items/tracked", timeout=10)
+    r.raise_for_status()
+    resp = r.json()
+    data = resp.get("data", resp) if isinstance(resp, dict) else resp
+    if not isinstance(data, list):
+        return []
+    return [
+        {
+            "item_id": i["id"],
+            "item_name": i["name"],
+            "english_name": i.get("english_name", ""),
+            "search_mode": i.get("search_mode", 1),
+            "item_type": i.get("item_type", 1),
+        }
+        for i in data
+    ]
+
+
+def fetch_alert_map() -> dict[int, dict]:
+    """取得啟用中的價格提醒，回傳 {item_id: {threshold_price, bot_id}}。"""
+    try:
+        r = requests.get(f"{API_BASE_URL}/api/bot/alert-items", timeout=10)
+        r.raise_for_status()
+        resp = r.json()
+        items = resp.get("data", resp) if isinstance(resp, dict) else resp
+        if not isinstance(items, list):
+            return {}
+        return {
+            i["item_id"]: {"threshold_price": i.get("threshold_price", 0), "bot_id": i.get("bot_id")}
+            for i in items
+            if i.get("item_id") is not None
+        }
+    except Exception:
+        return {}
+
+
 def record_price(item_id: int, price: int) -> bool:
     """將最低價格寫入後端。"""
     r = requests.post(

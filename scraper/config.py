@@ -15,7 +15,7 @@ WINDOW_TITLE = os.getenv("WINDOW_TITLE", "MapleStory Worlds-Artale")
 SCHEDULE_TIME = os.getenv("SCHEDULE_TIME", "08:00")
 
 # 間隔模式：每隔幾分鐘執行一次（--interval 模式 / bot.py 使用）
-SCHEDULE_INTERVAL_MINUTES = int(os.getenv("SCHEDULE_INTERVAL_MINUTES", "1"))
+SCHEDULE_INTERVAL_MINUTES = int(os.getenv("SCHEDULE_INTERVAL_MINUTES", "3"))
 
 # ---- Bot 帳號設定 ----
 # bot.py 需要登入後台才能取得提醒列表
