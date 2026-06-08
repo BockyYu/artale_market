@@ -3,6 +3,7 @@ package handler
 import (
 	"artale_market/dto"
 	"artale_market/service"
+	"errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +33,10 @@ func (h *AlertHandler) Create(c *gin.Context) {
 	}
 	alert, err := h.svc.Create(req.ItemID, req.BotID, req.ThresholdPrice, req.Note)
 	if err != nil {
+		if errors.Is(err, service.ErrDuplicateAlert) {
+			respConflict(c, err)
+			return
+		}
 		respInternal(c, err)
 		return
 	}

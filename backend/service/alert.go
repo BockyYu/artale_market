@@ -3,7 +3,10 @@ package service
 import (
 	"artale_market/model"
 	"artale_market/repository"
+	"errors"
 )
+
+var ErrDuplicateAlert = errors.New("此道具已有價格提醒")
 
 type AlertService interface {
 	List() ([]model.PriceAlert, error)
@@ -26,6 +29,13 @@ func (s *alertService) List() ([]model.PriceAlert, error) {
 }
 
 func (s *alertService) Create(itemID uint, botID *uint, threshold float64, note string) (*model.PriceAlert, error) {
+	exists, err := s.alertRepo.ExistsByItem(itemID)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrDuplicateAlert
+	}
 	alert := &model.PriceAlert{
 		ItemID:         itemID,
 		BotID:          botID,

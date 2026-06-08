@@ -13,6 +13,7 @@ type AlertRepository interface {
 	Update(id uint, fields map[string]any) error
 	Delete(id uint) error
 	ToggleActive(id uint, isActive bool) error
+	ExistsByItem(itemID uint) (bool, error)
 	FindActiveByItem(itemID uint) ([]model.PriceAlert, error)
 	FindAllActive() ([]model.PriceAlert, error)
 	UpdateLastTriggered(id uint) error
@@ -46,6 +47,12 @@ func (r *alertRepository) Delete(id uint) error {
 
 func (r *alertRepository) ToggleActive(id uint, isActive bool) error {
 	return r.db.Model(&model.PriceAlert{}).Where("id = ?", id).Update("is_active", isActive).Error
+}
+
+func (r *alertRepository) ExistsByItem(itemID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&model.PriceAlert{}).Where("item_id = ?", itemID).Count(&count).Error
+	return count > 0, err
 }
 
 func (r *alertRepository) FindActiveByItem(itemID uint) ([]model.PriceAlert, error) {

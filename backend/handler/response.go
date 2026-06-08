@@ -30,6 +30,10 @@ func respNotFound(c *gin.Context, err error) {
 	c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 }
 
+func respConflict(c *gin.Context, err error) {
+	c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+}
+
 func respInternal(c *gin.Context, err error) {
 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 }

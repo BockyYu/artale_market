@@ -4,7 +4,7 @@ import { listAlerts, createAlert, updateAlert, deleteAlert, toggleAlertActive, l
 const PLATFORM_LABEL = { tg: 'Telegram', line: 'LINE Notify', dc: 'Discord' }
 const PLATFORM_COLOR = { tg: '#2ca5e0', line: '#06c755', dc: '#5865f2' }
 
-const EMPTY_FORM = { itemID: 0, itemName: '', thresholdPrice: '', botID: '', note: '' }
+const EMPTY_FORM = { itemID: 0, itemName: '', thresholdPrice: '', botID: '', note: '', duplicate: false }
 
 export default function PriceAlerts() {
   const [alerts, setAlerts] = useState([])
@@ -72,7 +72,8 @@ export default function PriceAlerts() {
   }
 
   function handleSelectItem(item) {
-    setForm(f => ({ ...f, itemID: item.id, itemName: item.name }))
+    const isDuplicate = alerts.some(a => a.item_id === item.id)
+    setForm(f => ({ ...f, itemID: item.id, itemName: item.name, duplicate: isDuplicate }))
     setItemSearch(item.name)
     setItemSuggestions([])
     setShowSuggestions(false)
@@ -364,9 +365,14 @@ export default function PriceAlerts() {
                     ))}
                   </ul>
                 )}
-                {form.itemID > 0 && (
+                {form.itemID > 0 && !form.duplicate && (
                   <div style={{ marginTop: 4, fontSize: 12, color: '#16a34a' }}>
                     已選取：{form.itemName} (ID: {form.itemID})
+                  </div>
+                )}
+                {form.duplicate && (
+                  <div style={{ marginTop: 4, fontSize: 12, color: '#dc2626', fontWeight: 600 }}>
+                    ⚠ 此道具已有價格提醒，請勿重複新增
                   </div>
                 )}
               </div>
@@ -413,7 +419,7 @@ export default function PriceAlerts() {
 
               <div className="modal-actions">
                 <button type="button" className="btn-cancel" onClick={() => setShowCreate(false)}>取消</button>
-                <button type="submit" className="btn-save" disabled={creating}>{creating ? '建立中...' : '建立'}</button>
+                <button type="submit" className="btn-save" disabled={creating || form.duplicate}>{creating ? '建立中...' : '建立'}</button>
               </div>
             </form>
           </div>
