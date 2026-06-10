@@ -14,18 +14,49 @@
 
 ### 建立虛擬環境並安裝套件
 
+**1. 確認 Python 版本（需 3.10 以上）**
+
+```bash
+python --version
+```
+
+**2. 進入 scraper 目錄**
+
 ```bash
 cd scraper
-python -m venv .venv
+```
 
-# Windows
+**3. 建立虛擬環境**
+
+```bash
+python -m venv .venv
+```
+
+**4. 啟動虛擬環境**
+
+```bash
+# Windows（Command Prompt / PowerShell）
 .venv\Scripts\activate
 
 # macOS / Linux
 source .venv/bin/activate
+```
 
+啟動後，命令列前方會出現 `(.venv)` 字樣，表示已進入虛擬環境。
+
+**5. 安裝套件**
+
+```bash
 pip install -r requirements.txt
 ```
+
+**6. 停用虛擬環境（使用完畢後）**
+
+```bash
+deactivate
+```
+
+> 之後每次使用前只需重新執行步驟 4 啟動虛擬環境即可，不需要重新安裝套件。
 
 ---
 

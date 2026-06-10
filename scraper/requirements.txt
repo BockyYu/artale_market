@@ -9,3 +9,8 @@ schedule
 requests
 numpy
 python-dotenv
+
+# Mac 必要依賴（pyautogui / pygetwindow 在 macOS 底層需要 pyobjc）
+pyobjc-core; sys_platform == 'darwin'
+pyobjc-framework-Quartz; sys_platform == 'darwin'
+pyobjc-framework-Cocoa; sys_platform == 'darwin'
