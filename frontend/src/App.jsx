@@ -22,9 +22,6 @@ const USER_ID = getUserID()
 const ALL_SKILLBOOK_JOB = '全部'
 
 const JOB_GROUPS = [
-  { label: '全職業通用', cols: 1, items: [
-    { label: '全職業通用', value: '全職業共通' },
-  ]},
   { label: '劍士', cols: 2, items: [
     { label: '劍士',   value: '劍士' },
     { label: '英雄',   value: '英雄' },
@@ -525,11 +522,15 @@ export default function App() {
 
             {/* 職業 panel */}
             <div className={`fs-panel ${viewMode === 'skillbook' ? 'active' : ''}`}>
-              <div className="fs-row" style={{ gridTemplateColumns: '1fr' }}>
+              <div className="fs-row" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 <button
                   className={`fs-btn ${selectedJob === ALL_SKILLBOOK_JOB ? 'active' : ''}`}
                   onClick={() => setSelectedJob(ALL_SKILLBOOK_JOB)}
                 >全部</button>
+                <button
+                  className={`fs-btn ${selectedJob === '全職業共通' ? 'active' : ''}`}
+                  onClick={() => setSelectedJob('全職業共通')}
+                >全職業通用</button>
               </div>
               {JOB_GROUPS.map((group) => (
                 <div key={group.label}>
