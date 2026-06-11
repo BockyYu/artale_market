@@ -25,5 +25,6 @@ func registerMemberV1(g *gin.RouterGroup, d *Deps) {
 		auth.GET("/items/:id/prices", d.Item.GetByID)
 		auth.POST("/scrolls/search", d.Price.GetScrollSummary)
 		auth.POST("/skillbooks/search", d.Price.GetSkillBookSummary)
+		auth.POST("/equips/search", d.Price.GetEquipSummary)
 	}
 }

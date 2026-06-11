@@ -112,41 +112,37 @@ func seedSystemSettings(db *gorm.DB) {
 }
 
 func seedCategories(db *gorm.DB) {
-	var count int64
-	db.Model(&model.Category{}).Count(&count)
-	if count > 0 {
-		return
+	type entry struct {
+		name     string
+		itemType int
+	}
+	var seeds []entry
+	for _, n := range model.ScrollCategories {
+		seeds = append(seeds, entry{n, 1})
+	}
+	for _, n := range model.SkillBookCategories {
+		seeds = append(seeds, entry{n, 4})
+	}
+	for _, n := range model.EquipCategories {
+		seeds = append(seeds, entry{n, 6})
 	}
 
-	// 卷軸 (item_type=1) — 防具部位 + 武器種類
-	scrollCats := []string{
-		"頭盔", "上衣", "下衣", "套服", "鞋子", "手套", "披風", "盾牌",
-		"臉部裝飾", "眼部裝飾", "耳環", "戒指", "墜飾", "腰帶", "肩章", "勳章",
-		"單手劍", "雙手劍", "單手斧", "雙手斧", "單手棍", "雙手棍",
-		"槍", "矛", "短杖", "長杖", "弓", "弩", "短劍", "拳套", "指虎", "火槍",
-	}
-	// 技能書 (item_type=4) — 職業
-	skillBookCats := []string{
-		"劍士", "英雄", "聖騎士", "黑騎士",
-		"魔法師", "冰雷法師", "火毒法師", "主教",
-		"弓手", "神射手", "箭神",
-		"盜賊", "夜行者", "暗影俠盜",
-		"海盜", "拳擊手", "槍手",
+	inserted := 0
+	for _, s := range seeds {
+		cat := model.Category{Name: s.name, ItemType: s.itemType}
+		res := db.Where(model.Category{Name: s.name, ItemType: s.itemType}).FirstOrCreate(&cat)
+		if res.Error != nil {
+			log.Printf("[DB] failed to seed category %s(%d): %v", s.name, s.itemType, res.Error)
+			continue
+		}
+		if res.RowsAffected > 0 {
+			inserted++
+		}
 	}
 
-	var rows []model.Category
-	for _, name := range scrollCats {
-		rows = append(rows, model.Category{Name: name, ItemType: 1})
+	if inserted > 0 {
+		log.Printf("[DB] seeded %d new category(ies)", inserted)
 	}
-	for _, name := range skillBookCats {
-		rows = append(rows, model.Category{Name: name, ItemType: 4})
-	}
-
-	if err := db.Create(&rows).Error; err != nil {
-		log.Printf("[DB] failed to seed categories: %v", err)
-		return
-	}
-	log.Printf("[DB] seeded %d categories", len(rows))
 }
 
 func seedDefaultAdmin(db *gorm.DB) {

@@ -6,6 +6,7 @@ import { getMemberInfo, memberLogout, memberLogin, memberFetch, fetchAppConfig }
 
 const SCROLL_API    = '/api/v1/member/scrolls/search'
 const SKILLBOOK_API = '/api/v1/member/skillbooks/search'
+const EQUIP_API     = '/api/v1/member/equips/search'
 
 function getUserID() {
   let id = localStorage.getItem('artale_uid')
@@ -106,6 +107,13 @@ export default function App() {
   const [skillBookPageSize, setSkillBookPageSize] = useState(10)
   const [skillBookTotal, setSkillBookTotal] = useState(0)
 
+  const [equipItems, setEquipItems] = useState([])
+  const [equipSortBy, setEquipSortBy] = useState('price_desc')
+  const [equipFilterCategories, setEquipFilterCategories] = useState([])
+  const [equipPage, setEquipPage] = useState(1)
+  const [equipPageSize, setEquipPageSize] = useState(10)
+  const [equipTotal, setEquipTotal] = useState(0)
+
   const fetchSummary = useCallback(async (pcts, categories, sortBy, page, pageSize) => {
     try {
       const res = await memberFetch(SCROLL_API, {
@@ -129,6 +137,22 @@ export default function App() {
       setAllItems(result?.data || [])
     } catch {
       setAllItems([])
+    }
+  }, [])
+
+  const fetchEquips = useCallback(async (categories, sortBy, page, pageSize) => {
+    try {
+      const res = await memberFetch(EQUIP_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: localToday(), category: categories, sort_by: sortBy, page, page_size: pageSize }),
+      })
+      const result = await res.json()
+      setEquipItems(result?.data || [])
+      setEquipTotal(result?.total || 0)
+    } catch {
+      setEquipItems([])
+      setEquipTotal(0)
     }
   }, [])
 
@@ -162,12 +186,15 @@ export default function App() {
     if (!appConfig || appConfig.maintenance) return
     if (viewMode === 'scroll') {
       fetchSummary(filterPct, filterCategories, sortBy, scrollPage, scrollPageSize)
-    } else {
+    } else if (viewMode === 'skillbook') {
       fetchSkillBooks(selectedJob, skillBookSortBy, skillBookPage, skillBookPageSize)
+    } else if (viewMode === 'equip') {
+      fetchEquips(equipFilterCategories, equipSortBy, equipPage, equipPageSize)
     }
-  }, [fetchSummary, fetchSkillBooks,
+  }, [fetchSummary, fetchSkillBooks, fetchEquips,
       filterPct, filterCategories, sortBy, viewMode, selectedJob, skillBookSortBy,
-      scrollPage, scrollPageSize, skillBookPage, skillBookPageSize, appConfig])
+      scrollPage, scrollPageSize, skillBookPage, skillBookPageSize,
+      equipFilterCategories, equipSortBy, equipPage, equipPageSize, appConfig])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -181,6 +208,7 @@ export default function App() {
 
   useEffect(() => { setScrollPage(1) }, [filterPct, filterCategories, sortBy, pinnedItems.length, scrollPageSize])
   useEffect(() => { setSkillBookPage(1) }, [selectedJob, skillBookSortBy, skillBookPageSize])
+  useEffect(() => { setEquipPage(1) }, [equipFilterCategories, equipSortBy, equipPageSize])
 
   const fetchPinnedItemPrices = useCallback(async (items) => {
     if (items.length === 0) return
@@ -365,6 +393,55 @@ export default function App() {
     },
   ]
 
+  const EQUIP_CATEGORY_GROUPS = [
+    {
+      label: '防具',
+      cols: 5,
+      items: [
+        { label: '頭盔', value: '頭盔' },
+        { label: '上衣', value: '上衣' },
+        { label: '下衣', value: '下衣' },
+        { label: '套服', value: '套服' },
+        { label: '鞋子', value: '鞋子' },
+        { label: '手套', value: '手套' },
+        { label: '披風', value: '披風' },
+        { label: '盾牌', value: '盾牌' },
+        { label: '臉飾', value: '臉部裝飾' },
+        { label: '眼飾', value: '眼部裝飾' },
+        { label: '耳環', value: '耳環' },
+        { label: '戒指', value: '戒指' },
+        { label: '墜飾', value: '墜飾' },
+        { label: '腰帶', value: '腰帶' },
+        { label: '肩章', value: '肩章' },
+        { label: '勳章', value: '勳章' },
+      ],
+    },
+    {
+      label: '武器',
+      cols: 3,
+      items: [
+        { label: '武器',   value: '武器' },
+        { label: '單手劍', value: '單手劍' },
+        { label: '雙手劍', value: '雙手劍' },
+        { label: '單手斧', value: '單手斧' },
+        { label: '雙手斧', value: '雙手斧' },
+        { label: '單手棍', value: '單手棍' },
+        { label: '雙手棍', value: '雙手棍' },
+        { label: '槍',     value: '槍' },
+        { label: '矛',     value: '矛' },
+        { label: '短杖',   value: '短杖' },
+        { label: '長杖',   value: '長杖' },
+        { label: '弓',     value: '弓' },
+        { label: '弩',     value: '弩' },
+        { label: '短劍',   value: '短劍' },
+        { label: '拳套',   value: '拳套' },
+        { label: '指虎',   value: '指虎' },
+        { label: '火槍',   value: '火槍' },
+        { label: '飛鏢',   value: '飛鏢' },
+      ],
+    },
+  ]
+
   const fmt = (price) =>
     price != null ? price.toLocaleString() : '—'
 
@@ -433,13 +510,17 @@ export default function App() {
           <div className="fs-wrap">
             <div className="fs-tabs">
               <button
-                className={`fs-tab ${viewMode === 'skillbook' ? 'active' : ''}`}
+                className={`fs-tab fs-tab--skillbook ${viewMode === 'skillbook' ? 'active' : ''}`}
                 onClick={() => setViewMode('skillbook')}
               >職業技能書</button>
               <button
-                className={`fs-tab ${viewMode === 'scroll' ? 'active' : ''}`}
+                className={`fs-tab fs-tab--scroll ${viewMode === 'scroll' ? 'active' : ''}`}
                 onClick={() => setViewMode('scroll')}
               >卷軸</button>
+              <button
+                className={`fs-tab fs-tab--equip ${viewMode === 'equip' ? 'active' : ''}`}
+                onClick={() => setViewMode('equip')}
+              >裝備</button>
             </div>
 
             {/* 職業 panel */}
@@ -504,6 +585,33 @@ export default function App() {
                         key={value}
                         className={`fs-btn ${filterCategories.includes(value) ? 'active' : ''}`}
                         onClick={() => setFilterCategories(prev =>
+                          prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
+                        )}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* 裝備 panel */}
+            <div className={`fs-panel ${viewMode === 'equip' ? 'active' : ''}`}>
+              {equipFilterCategories.length > 0 && (
+                <button
+                  className="fs-btn fs-btn-clear"
+                  style={{ width: '100%', marginBottom: 4 }}
+                  onClick={() => setEquipFilterCategories([])}
+                >清除分類 ×</button>
+              )}
+
+              {EQUIP_CATEGORY_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div className="fs-sub-label">{group.label}</div>
+                  <div className="fs-row" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
+                    {group.items.map(({ label, value }) => (
+                      <button
+                        key={value}
+                        className={`fs-btn ${equipFilterCategories.includes(value) ? 'active' : ''}`}
+                        onClick={() => setEquipFilterCategories(prev =>
                           prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
                         )}
                       >{label}</button>
@@ -596,7 +704,89 @@ export default function App() {
             </div>
           )}
 
-          {viewMode === 'scroll' ? (
+          {viewMode === 'equip' ? (
+            <>
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 36, textAlign: 'center', color: '#9ca3af' }}>#</th>
+                      <th>裝備名稱</th>
+                      <th>類型</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setEquipSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
+                      >
+                        今日價格
+                        <span className="sort-icon">
+                          {equipSortBy === 'price_desc' ? ' ▼' : equipSortBy === 'price_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setEquipSortBy(s => s === 'yesterday_price_desc' ? 'yesterday_price_asc' : 'yesterday_price_desc')}
+                      >
+                        昨日
+                        <span className="sort-icon">
+                          {equipSortBy === 'yesterday_price_desc' ? ' ▼' : equipSortBy === 'yesterday_price_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setEquipSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
+                      >
+                        漲跌
+                        <span className="sort-icon">
+                          {equipSortBy === 'change_desc' ? ' ▼' : equipSortBy === 'change_asc' ? ' ▲' : ' ⇅'}
+                        </span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {equipItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="empty">尚無資料</td>
+                      </tr>
+                    ) : (
+                      equipItems.map((item, idx) => (
+                        <tr key={item.item_id}>
+                          <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.88rem', fontWeight: 600 }}>
+                            {(equipPage - 1) * equipPageSize + idx + 1}
+                          </td>
+                          <td className="text-bold">{item.item_name}</td>
+                          <td><span className="category-tag">{item.category}</span></td>
+                          <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
+                            {fmt(item.today_price)}
+                            {(item.today_updated_at || item.today_created_at) && (
+                              <div className="price-updated-at">
+                                {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </td>
+                          <td className="text-muted">
+                            {fmt(item.yesterday_price)}
+                            {(item.yesterday_updated_at || item.yesterday_created_at) && (
+                              <div className="price-updated-at">
+                                {new Date(item.yesterday_updated_at ?? item.yesterday_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </td>
+                          <td><ChangeCell pct={item.change_percent} /></td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={equipPage}
+                pageSize={equipPageSize}
+                total={equipTotal}
+                onPageChange={setEquipPage}
+                onPageSizeChange={setEquipPageSize}
+              />
+            </>
+          ) : viewMode === 'scroll' ? (
             <>
               <div className="table-wrapper">
                 <table>

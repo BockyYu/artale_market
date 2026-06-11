@@ -66,6 +66,30 @@ func (h *PriceHandler) GetSkillBookSummary(c *gin.Context) {
 	respOK(c, result)
 }
 
+func (h *PriceHandler) GetEquipSummary(c *gin.Context) {
+	var body dto.EquipSearchReq
+	if err := c.ShouldBindJSON(&body); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	if body.Date == "" {
+		body.Date = time.Now().Format("2006-01-02")
+	}
+	if body.Page < 1 {
+		body.Page = 1
+	}
+	if body.SortBy == "" {
+		body.SortBy = "price_desc"
+	}
+
+	result, err := h.svc.GetEquipSummary(body.Date, body.Category, body.SortBy, body.Page, body.PageSize)
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, result)
+}
+
 func (h *PriceHandler) RecordPrice(c *gin.Context) {
 	var input dto.RecordPriceReq
 	if err := c.ShouldBindJSON(&input); err != nil {
