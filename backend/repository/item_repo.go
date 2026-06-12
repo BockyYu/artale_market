@@ -19,7 +19,9 @@ type ItemRepository interface {
 	FindByID(id uint) (*model.Item, error)
 	FindByName(name string) (*model.Item, error)
 	FindByIDSummary(id uint, today, yesterday, threeDaysAgo string) (*model.PriceSummary, error)
+	FindAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error)
 	FindTracked(date string) ([]model.Item, error)
+	SetHidden(id uint, hidden bool) error
 	Create(item *model.Item) error
 	Update(item *model.Item, fields map[string]any) error
 	Delete(id uint) error
@@ -35,11 +37,12 @@ func NewItemRepository(db *gorm.DB) ItemRepository {
 
 func (r *itemRepo) FindAll() ([]model.Item, error) {
 	var items []model.Item
-	err := r.db.Order("name asc").Find(&items).Error
+	err := r.db.Where("is_hidden = false").Order("name asc").Find(&items).Error
 	return items, err
 }
 
 func (r *itemRepo) applyAdminFilters(q *gorm.DB, search string, filterType, filterPriority int) *gorm.DB {
+	q = q.Where("items.is_hidden = false")
 	if search != "" {
 		q = q.Where("items.name ILIKE ? OR items.category ILIKE ?", "%"+search+"%", "%"+search+"%")
 	}
@@ -160,7 +163,7 @@ func (r *itemRepo) FindPage(pcts []int, categories []string, itemTypes []int, so
 
 func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
 	var total int64
-	countQ := r.db.Model(&model.Item{}).Where("item_type = ?", model.ItemTypeScroll).
+	countQ := r.db.Model(&model.Item{}).Where("item_type = ? AND is_hidden = false", model.ItemTypeScroll).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
 	if len(pcts) > 0 {
 		countQ = countQ.Where("percentage IN ?", pcts)
@@ -176,7 +179,7 @@ func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string
 		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_yesterday.created_at AS yesterday_created_at, pr_yesterday.updated_at AS yesterday_updated_at, pr_3days.price AS three_days_ago_price, (pr_today.price - pr_yesterday.price) / NULLIF(pr_yesterday.price, 0) AS change_pct`).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
-		Where("items.item_type = ?", model.ItemTypeScroll)
+		Where("items.item_type = ? AND items.is_hidden = false", model.ItemTypeScroll)
 
 	if len(pcts) > 0 {
 		q = q.Where("items.percentage IN ?", pcts)
@@ -214,7 +217,7 @@ func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string
 
 func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
 	var total int64
-	countQ := r.db.Model(&model.Item{}).Where("item_type = ?", model.ItemTypeSkillBook).
+	countQ := r.db.Model(&model.Item{}).Where("item_type = ? AND is_hidden = false", model.ItemTypeSkillBook).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
 	if len(categories) > 0 {
 		countQ = countQ.Where("category IN ?", categories)
@@ -227,7 +230,7 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_yesterday.created_at AS yesterday_created_at, pr_yesterday.updated_at AS yesterday_updated_at, pr_3days.price AS three_days_ago_price, (pr_today.price - pr_yesterday.price) / NULLIF(pr_yesterday.price, 0) AS change_pct`).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
-		Where("items.item_type = ?", model.ItemTypeSkillBook)
+		Where("items.item_type = ? AND items.is_hidden = false", model.ItemTypeSkillBook)
 
 	if len(categories) > 0 {
 		q = q.Where("items.category IN ?", categories)
@@ -262,7 +265,7 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 
 func (r *itemRepo) FindEquipPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
 	var total int64
-	countQ := r.db.Model(&model.Item{}).Where("item_type = ?", model.ItemTypeEquip).
+	countQ := r.db.Model(&model.Item{}).Where("item_type = ? AND is_hidden = false", model.ItemTypeEquip).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
 	if len(categories) > 0 {
 		countQ = countQ.Where("category IN ?", categories)
@@ -275,7 +278,7 @@ func (r *itemRepo) FindEquipPage(categories []string, sortBy string, today, yest
 		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_yesterday.created_at AS yesterday_created_at, pr_yesterday.updated_at AS yesterday_updated_at, pr_3days.price AS three_days_ago_price, (pr_today.price - pr_yesterday.price) / NULLIF(pr_yesterday.price, 0) AS change_pct`).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
-		Where("items.item_type = ?", model.ItemTypeEquip)
+		Where("items.item_type = ? AND items.is_hidden = false", model.ItemTypeEquip)
 
 	if len(categories) > 0 {
 		q = q.Where("items.category IN ?", categories)
@@ -338,6 +341,30 @@ func (r *itemRepo) FindTracked(date string) ([]model.Item, error) {
 		Order("items.track_priority asc, items.name asc").
 		Find(&items).Error
 	return items, err
+}
+
+func (r *itemRepo) SetHidden(id uint, hidden bool) error {
+	return r.db.Model(&model.Item{}).Where("id = ?", id).Update("is_hidden", hidden).Error
+}
+
+func (r *itemRepo) FindAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error) {
+	var rows []model.ExportRow
+	err := r.db.Debug().Model(&model.Item{}).
+		Select(`items.name AS item_name, items.category AS category,
+			pr0.price AS d0_price, pr1.price AS d1_price, pr2.price AS d2_price,
+			pr3.price AS d3_price, pr4.price AS d4_price, pr5.price AS d5_price,
+			pr6.price AS d6_price`).
+		Joins("LEFT JOIN price_records pr0 ON pr0.item_id = items.id AND pr0.recorded_date = ?", dates[0]).
+		Joins("LEFT JOIN price_records pr1 ON pr1.item_id = items.id AND pr1.recorded_date = ?", dates[1]).
+		Joins("LEFT JOIN price_records pr2 ON pr2.item_id = items.id AND pr2.recorded_date = ?", dates[2]).
+		Joins("LEFT JOIN price_records pr3 ON pr3.item_id = items.id AND pr3.recorded_date = ?", dates[3]).
+		Joins("LEFT JOIN price_records pr4 ON pr4.item_id = items.id AND pr4.recorded_date = ?", dates[4]).
+		Joins("LEFT JOIN price_records pr5 ON pr5.item_id = items.id AND pr5.recorded_date = ?", dates[5]).
+		Joins("LEFT JOIN price_records pr6 ON pr6.item_id = items.id AND pr6.recorded_date = ?", dates[6]).
+		Where("items.item_type = ? AND items.is_hidden = false AND (pr0.id IS NOT NULL OR pr1.id IS NOT NULL OR pr2.id IS NOT NULL OR pr3.id IS NOT NULL OR pr4.id IS NOT NULL OR pr5.id IS NOT NULL OR pr6.id IS NOT NULL)", itemType).
+		Order("pr0.price DESC NULLS LAST, items.category ASC, items.name ASC").
+		Scan(&rows).Error
+	return rows, err
 }
 
 func (r *itemRepo) Create(item *model.Item) error {

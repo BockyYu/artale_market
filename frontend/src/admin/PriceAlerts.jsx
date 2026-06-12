@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { listAlerts, createAlert, updateAlert, deleteAlert, toggleAlertActive, listItems, listBots } from './api'
 
-const PLATFORM_LABEL = { tg: 'Telegram', line: 'LINE Notify', dc: 'Discord' }
-const PLATFORM_COLOR = { tg: '#2ca5e0', line: '#06c755', dc: '#5865f2' }
+const PLATFORM_LABEL = { tg: 'Telegram', line: 'LINE Notify' }
+const PLATFORM_COLOR = { tg: '#2ca5e0', line: '#06c755' }
 
 const EMPTY_FORM = { itemID: 0, itemName: '', thresholdPrice: '', botID: '', note: '', duplicate: false }
 

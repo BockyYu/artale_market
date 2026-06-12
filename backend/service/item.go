@@ -17,6 +17,8 @@ type ItemService interface {
 	GetByID(id uint) (*model.Item, error)
 	GetPriceSummary(id uint) (*model.PriceSummary, error)
 	GetTracked(date string) ([]model.Item, error)
+	GetAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error)
+	SetHidden(id uint, hidden bool) error
 	Create(item *model.Item) error
 	Update(id uint, name, englishName string, searchMode int, itemType model.ItemType, percentage int, category, description string) (*model.Item, error)
 	SetTracked(id uint, priority model.TrackPriority) (*model.Item, error)
@@ -129,6 +131,14 @@ func (s *itemService) Update(id uint, name, englishName string, searchMode int, 
 
 func (s *itemService) GetTracked(date string) ([]model.Item, error) {
 	return s.itemRepo.FindTracked(date)
+}
+
+func (s *itemService) GetAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error) {
+	return s.itemRepo.FindAllForExport(itemType, dates)
+}
+
+func (s *itemService) SetHidden(id uint, hidden bool) error {
+	return s.itemRepo.SetHidden(id, hidden)
 }
 
 func (s *itemService) SetTracked(id uint, priority model.TrackPriority) (*model.Item, error) {

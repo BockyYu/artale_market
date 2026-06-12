@@ -34,11 +34,14 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.POST("/items/:id/prices", middleware.CasbinAuth(d.Enforcer, "price", "write"), d.Price.RecordPrice)
 
 		// 道具列表與查詢優先度管理
+		auth.GET("/export/excel", d.Item.ExportExcel)
+		auth.POST("/export/discord", d.Item.SendExcelToDiscord)
 		auth.GET("/items/categories", d.Item.GetCategories)
 		auth.GET("/items", d.Item.AdminGetAll)
 		auth.POST("/items", d.Item.Create)
 		auth.PUT("/items/:id", d.Item.Update)
 		auth.PATCH("/items/:id/track", d.Item.SetTracked)
+		auth.PATCH("/items/:id/hidden", d.Item.SetHidden)
 		auth.GET("/items/:id/prices", d.Price.AdminGetHistory)
 		auth.GET("/items/:id/histories", d.Price.AdminGetPriceHistories)
 		auth.DELETE("/histories/:id", d.Price.DeletePriceHistory)
@@ -50,6 +53,9 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.PUT("/alerts/:id", d.Alert.Update)
 		auth.DELETE("/alerts/:id", d.Alert.Delete)
 		auth.PATCH("/alerts/:id/active", d.Alert.ToggleActive)
+
+		// Discord 測試
+		auth.POST("/discord/test", d.Bot.TestDiscord)
 
 		// 通知機器人
 		auth.GET("/bots", d.Bot.List)

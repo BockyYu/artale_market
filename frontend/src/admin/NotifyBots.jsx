@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listBots, createBot, updateBot, deleteBot, toggleBotActive, sendBotMessage } from './api'
+import { listBots, createBot, updateBot, deleteBot, toggleBotActive, sendBotMessage, testDiscordWebhook } from './api'
 
-const PLATFORM_LABEL = { tg: 'Telegram', line: 'LINE Notify', dc: 'Discord' }
-const PLATFORM_COLOR = { tg: '#2ca5e0', line: '#06c755', dc: '#5865f2' }
+const PLATFORM_LABEL = { tg: 'Telegram', line: 'LINE Notify' }
+const PLATFORM_COLOR = { tg: '#2ca5e0', line: '#06c755' }
 
 const EMPTY_FORM = { name: '', platform: 'tg', token: '', chat_id: '' }
 
@@ -23,14 +23,12 @@ function BotForm({ f, setF, isEdit }) {
         >
           <option value="tg">Telegram</option>
           <option value="line">LINE Notify</option>
-          <option value="dc">Discord</option>
         </select>
       </div>
       <div className="form-group">
         <label>
           {f.platform === 'tg' && 'Bot Token *'}
           {f.platform === 'line' && 'LINE Notify Token *'}
-          {f.platform === 'dc' && 'Webhook URL *'}
         </label>
         <input
           required={!isEdit}
@@ -39,8 +37,7 @@ function BotForm({ f, setF, isEdit }) {
           placeholder={
             isEdit ? '留空則不修改' :
             f.platform === 'tg' ? '例：123456789:ABCdef...' :
-            f.platform === 'line' ? 'LINE Notify Access Token' :
-            'https://discord.com/api/webhooks/...'
+            'LINE Notify Access Token'
           }
         />
       </div>
@@ -73,6 +70,7 @@ export default function NotifyBots() {
   const [sendTarget, setSendTarget] = useState(null)
   const [sendMsg, setSendMsg] = useState('')
   const [sending, setSending] = useState(false)
+  const [testingDc, setTestingDc] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -179,6 +177,24 @@ export default function NotifyBots() {
         <h1>通知機器人</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>共 {bots.length} 筆</span>
+          <button
+            className="btn-action"
+            style={{ background: '#5865f2', color: '#fff', border: 'none', opacity: testingDc ? 0.6 : 1 }}
+            disabled={testingDc}
+            onClick={async () => {
+              setTestingDc(true)
+              try {
+                await testDiscordWebhook()
+                alert('Discord 測試訊息已送出')
+              } catch (err) {
+                alert('發送失敗：' + err.message)
+              } finally {
+                setTestingDc(false)
+              }
+            }}
+          >
+            {testingDc ? '發送中...' : '測試 Discord'}
+          </button>
           <button className="btn-add" onClick={() => { setForm(EMPTY_FORM); setShowCreate(true) }}>+ 新增機器人</button>
         </div>
       </div>

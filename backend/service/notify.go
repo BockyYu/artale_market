@@ -19,8 +19,6 @@ func SendMessage(bot *model.NotifyBot, text string) error {
 		return sendTGMessage(bot.Token, bot.ChatID, text)
 	case "line":
 		return sendLINEMessage(bot.Token, text)
-	case "dc":
-		return sendDiscordMessage(bot.Token, text)
 	default:
 		return fmt.Errorf("unsupported platform: %s", bot.Platform)
 	}
@@ -69,22 +67,6 @@ func sendLINEMessage(token, text string) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("LINE Notify API 回傳 status %d", resp.StatusCode)
-	}
-	return nil
-}
-
-func sendDiscordMessage(webhookURL, text string) error {
-	if webhookURL == "" {
-		return fmt.Errorf("Discord webhook URL 未設定")
-	}
-	payload, _ := json.Marshal(map[string]any{"content": text})
-	resp, err := http.Post(webhookURL, "application/json", bytes.NewReader(payload))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("Discord API 回傳 status %d", resp.StatusCode)
 	}
 	return nil
 }

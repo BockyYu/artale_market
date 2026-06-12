@@ -185,11 +185,57 @@ export async function recordItemPrice(id, price) {
   return handleResponse(res)
 }
 
+export async function sendExcelToDiscord() {
+  const res = await fetch(`${BASE}/export/discord`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  return handleResponse(res)
+}
+
+export async function exportExcel() {
+  const res = await fetch(`${BASE}/export/excel`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `HTTP ${res.status}`)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const today = new Date().toISOString().slice(0, 10)
+  a.href = url
+  a.download = `artale_market_${today}.xlsx`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+export async function setItemHidden(id, isHidden) {
+  const res = await fetch(`${BASE}/items/${id}/hidden`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ is_hidden: isHidden }),
+  })
+  return handleResponse(res)
+}
+
 export async function updateItemTrack(id, trackPriority) {
   const res = await fetch(`${BASE}/items/${id}/track`, {
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify({ track_priority: trackPriority }),
+  })
+  return handleResponse(res)
+}
+
+// Discord
+export async function testDiscordWebhook() {
+  const res = await fetch(`${BASE}/discord/test`, {
+    method: 'POST',
+    headers: authHeaders(),
   })
   return handleResponse(res)
 }

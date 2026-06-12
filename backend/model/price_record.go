@@ -20,6 +20,19 @@ type PagedSummary struct {
 	PageSize int            `json:"page_size"` // 每頁筆數
 }
 
+// ExportRow Excel 匯出用的單列資料（7 天價格）
+type ExportRow struct {
+	ItemName string   `gorm:"column:item_name"`
+	Category string   `gorm:"column:category"`
+	D0Price  *float64 `gorm:"column:d0_price"`
+	D1Price  *float64 `gorm:"column:d1_price"`
+	D2Price  *float64 `gorm:"column:d2_price"`
+	D3Price  *float64 `gorm:"column:d3_price"`
+	D4Price  *float64 `gorm:"column:d4_price"`
+	D5Price  *float64 `gorm:"column:d5_price"`
+	D6Price  *float64 `gorm:"column:d6_price"`
+}
+
 // PriceSummary 商品價格摘要（跨多日聚合，用於列表頁）
 type PriceSummary struct {
 	ItemID            uint       `json:"item_id"              gorm:"column:item_id"`

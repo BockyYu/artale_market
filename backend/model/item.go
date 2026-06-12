@@ -53,6 +53,7 @@ type Item struct {
 	Description   string        `json:"description"`                         // 備註
 	ItemType      ItemType      `json:"item_type"      gorm:"default:1;index"` // 商品類型
 	TrackPriority TrackPriority `json:"track_priority" gorm:"default:0"`     // 追蹤優先等級
+	IsHidden      bool          `json:"-"              gorm:"default:false"`  // 隱藏（軟刪除）
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
 }

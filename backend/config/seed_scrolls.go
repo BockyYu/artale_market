@@ -59,16 +59,16 @@ var scrollSeeds = []seedScroll{
 	{Name: "盾牌防禦力卷軸10%", Percentage: 10, Category: "盾牌", Description: "物防+5 魔防+3", ItemType: model.ItemTypeScroll},
 
 	// ── 臉部裝飾 ──
-	{Name: "臉部裝飾力量卷軸10%", Percentage: 10, Category: "臉部裝飾", Description: "力量+5", ItemType: model.ItemTypeScroll},
-	{Name: "臉部裝飾敏捷卷軸10%", Percentage: 10, Category: "臉部裝飾", Description: "敏捷+5", ItemType: model.ItemTypeScroll},
-	{Name: "臉部裝飾智力卷軸10%", Percentage: 10, Category: "臉部裝飾", Description: "智力+5", ItemType: model.ItemTypeScroll},
-	{Name: "臉部裝飾幸運卷軸10%", Percentage: 10, Category: "臉部裝飾", Description: "幸運+5", ItemType: model.ItemTypeScroll},
+	{Name: "臉部裝飾力量卷軸10%", Percentage: 10, Category: "臉部", Description: "力量+5", ItemType: model.ItemTypeScroll},
+	{Name: "臉部裝飾敏捷卷軸10%", Percentage: 10, Category: "臉部", Description: "敏捷+5", ItemType: model.ItemTypeScroll},
+	{Name: "臉部裝飾智力卷軸10%", Percentage: 10, Category: "臉部", Description: "智力+5", ItemType: model.ItemTypeScroll},
+	{Name: "臉部裝飾幸運卷軸10%", Percentage: 10, Category: "臉部", Description: "幸運+5", ItemType: model.ItemTypeScroll},
 
 	// ── 眼部裝飾 ──
-	{Name: "眼部裝飾力量卷軸10%", Percentage: 10, Category: "眼部裝飾", Description: "力量+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾敏捷卷軸10%", Percentage: 10, Category: "眼部裝飾", Description: "敏捷+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾智力卷軸10%", Percentage: 10, Category: "眼部裝飾", Description: "智力+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾幸運卷軸10%", Percentage: 10, Category: "眼部裝飾", Description: "幸運+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾力量卷軸10%", Percentage: 10, Category: "眼部", Description: "力量+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾敏捷卷軸10%", Percentage: 10, Category: "眼部", Description: "敏捷+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾智力卷軸10%", Percentage: 10, Category: "眼部", Description: "智力+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾幸運卷軸10%", Percentage: 10, Category: "眼部", Description: "幸運+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 耳環 ──
 	{Name: "耳環敏捷卷軸10%", Percentage: 10, Category: "耳環", Description: "敏捷+5", ItemType: model.ItemTypeScroll},
@@ -135,16 +135,16 @@ var scrollSeeds = []seedScroll{
 	{Name: "披風幸運卷軸30%", Percentage: 30, Category: "披風", Description: "幸運+3", ItemType: model.ItemTypeScroll},
 
 	// ── 臉部裝飾 ──
-	{Name: "臉部裝飾力量卷軸30%", Percentage: 30, Category: "臉部裝飾", Description: "力量+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾敏捷卷軸30%", Percentage: 30, Category: "臉部裝飾", Description: "敏捷+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾智力卷軸30%", Percentage: 30, Category: "臉部裝飾", Description: "智力+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾幸運卷軸30%", Percentage: 30, Category: "臉部裝飾", Description: "幸運+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾力量卷軸30%", Percentage: 30, Category: "臉部", Description: "力量+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾敏捷卷軸30%", Percentage: 30, Category: "臉部", Description: "敏捷+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾智力卷軸30%", Percentage: 30, Category: "臉部", Description: "智力+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾幸運卷軸30%", Percentage: 30, Category: "臉部", Description: "幸運+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 眼部裝飾 ──
-	{Name: "眼部裝飾力量卷軸30%", Percentage: 30, Category: "眼部裝飾", Description: "力量+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾敏捷卷軸30%", Percentage: 30, Category: "眼部裝飾", Description: "敏捷+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾智力卷軸30%", Percentage: 30, Category: "眼部裝飾", Description: "智力+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾幸運卷軸30%", Percentage: 30, Category: "眼部裝飾", Description: "幸運+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾力量卷軸30%", Percentage: 30, Category: "眼部", Description: "力量+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾敏捷卷軸30%", Percentage: 30, Category: "眼部", Description: "敏捷+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾智力卷軸30%", Percentage: 30, Category: "眼部", Description: "智力+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾幸運卷軸30%", Percentage: 30, Category: "眼部", Description: "幸運+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 墜飾 ──
 	{Name: "墜飾力量卷軸30%", Percentage: 30, Category: "墜飾", Description: "力量+5", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
@@ -218,16 +218,16 @@ var scrollSeeds = []seedScroll{
 	{Name: "盾牌防禦力卷軸60%", Percentage: 60, Category: "盾牌", Description: "物防+2 魔防+1", ItemType: model.ItemTypeScroll},
 
 	// ── 臉部裝飾 ──
-	{Name: "臉部裝飾力量卷軸60%", Percentage: 60, Category: "臉部裝飾", Description: "力量+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾敏捷卷軸60%", Percentage: 60, Category: "臉部裝飾", Description: "敏捷+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾智力卷軸60%", Percentage: 60, Category: "臉部裝飾", Description: "智力+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾幸運卷軸60%", Percentage: 60, Category: "臉部裝飾", Description: "幸運+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾力量卷軸60%", Percentage: 60, Category: "臉部", Description: "力量+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾敏捷卷軸60%", Percentage: 60, Category: "臉部", Description: "敏捷+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾智力卷軸60%", Percentage: 60, Category: "臉部", Description: "智力+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾幸運卷軸60%", Percentage: 60, Category: "臉部", Description: "幸運+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 眼部裝飾 ──
-	{Name: "眼部裝飾力量卷軸60%", Percentage: 60, Category: "眼部裝飾", Description: "力量+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾敏捷卷軸60%", Percentage: 60, Category: "眼部裝飾", Description: "敏捷+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾智力卷軸60%", Percentage: 60, Category: "眼部裝飾", Description: "智力+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾幸運卷軸60%", Percentage: 60, Category: "眼部裝飾", Description: "幸運+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾力量卷軸60%", Percentage: 60, Category: "眼部", Description: "力量+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾敏捷卷軸60%", Percentage: 60, Category: "眼部", Description: "敏捷+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾智力卷軸60%", Percentage: 60, Category: "眼部", Description: "智力+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾幸運卷軸60%", Percentage: 60, Category: "眼部", Description: "幸運+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 耳環 ──
 	{Name: "耳環敏捷卷軸60%", Percentage: 60, Category: "耳環", Description: "敏捷+2", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
@@ -355,16 +355,16 @@ var scrollSeeds = []seedScroll{
 	{Name: "盾牌防禦力卷軸100%", Percentage: 100, Category: "盾牌", Description: "物防+1", ItemType: model.ItemTypeScroll},
 
 	// ── 臉部裝飾 ──
-	{Name: "臉部裝飾力量卷軸100%", Percentage: 100, Category: "臉部裝飾", Description: "力量+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾敏捷卷軸100%", Percentage: 100, Category: "臉部裝飾", Description: "敏捷+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾智力卷軸100%", Percentage: 100, Category: "臉部裝飾", Description: "智力+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "臉部裝飾幸運卷軸100%", Percentage: 100, Category: "臉部裝飾", Description: "幸運+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾力量卷軸100%", Percentage: 100, Category: "臉部", Description: "力量+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾敏捷卷軸100%", Percentage: 100, Category: "臉部", Description: "敏捷+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾智力卷軸100%", Percentage: 100, Category: "臉部", Description: "智力+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "臉部裝飾幸運卷軸100%", Percentage: 100, Category: "臉部", Description: "幸運+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 眼部裝飾 ──
-	{Name: "眼部裝飾力量卷軸100%", Percentage: 100, Category: "眼部裝飾", Description: "力量+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾敏捷卷軸100%", Percentage: 100, Category: "眼部裝飾", Description: "敏捷+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾智力卷軸100%", Percentage: 100, Category: "眼部裝飾", Description: "智力+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
-	{Name: "眼部裝飾幸運卷軸100%", Percentage: 100, Category: "眼部裝飾", Description: "幸運+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾力量卷軸100%", Percentage: 100, Category: "眼部", Description: "力量+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾敏捷卷軸100%", Percentage: 100, Category: "眼部", Description: "敏捷+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾智力卷軸100%", Percentage: 100, Category: "眼部", Description: "智力+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
+	{Name: "眼部裝飾幸運卷軸100%", Percentage: 100, Category: "眼部", Description: "幸運+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},
 
 	// ── 耳環 ──
 	{Name: "耳環敏捷卷軸100%", Percentage: 100, Category: "耳環", Description: "敏捷+1", ItemType: model.ItemTypeScroll, TrackPriority: model.TrackPriorityPrimary},

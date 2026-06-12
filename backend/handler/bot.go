@@ -1,6 +1,12 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+
 	"artale_market/dto"
 	"artale_market/service"
 
@@ -86,6 +92,26 @@ func (h *BotHandler) PublicNotify(c *gin.Context) {
 	}
 	if err := h.svc.SendMessage(req.BotID, req.Message); err != nil {
 		respInternal(c, err)
+		return
+	}
+	respOK(c, gin.H{"message": "sent"})
+}
+
+func (h *BotHandler) TestDiscord(c *gin.Context) {
+	webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
+	if webhookURL == "" {
+		respBadRequest(c, fmt.Errorf("DISCORD_WEBHOOK_URL 未設定"))
+		return
+	}
+	payload, _ := json.Marshal(map[string]any{"content": "Artale Market 測試訊息 ✅"})
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewReader(payload))
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		respInternal(c, fmt.Errorf("Discord 回傳 status %d", resp.StatusCode))
 		return
 	}
 	respOK(c, gin.H{"message": "sent"})

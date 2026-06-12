@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listItems, listItemCategories, createItem, updateItem, updateItemTrack, getItemHistories, togglePriceHistoryHidden, recordItemPrice } from './api'
+import { listItems, listItemCategories, createItem, updateItem, updateItemTrack, getItemHistories, togglePriceHistoryHidden, recordItemPrice, exportExcel, sendExcelToDiscord, setItemHidden } from './api'
 
 const EMPTY_FORM = { name: '', english_name: '', search_mode: 1, item_type: 1, category: '', percentage: 0, description: '', track_priority: 0 }
 
@@ -51,6 +51,10 @@ export default function Items() {
   const [editingItem, setEditingItem] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [savingItem, setSavingItem] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [sendingDc, setSendingDc] = useState(false)
+  const [confirmHideItem, setConfirmHideItem] = useState(null)
+  const [hiding, setHiding] = useState(false)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -198,6 +202,21 @@ export default function Items() {
     }
   }
 
+  async function handleConfirmHide() {
+    if (!confirmHideItem) return
+    setHiding(true)
+    try {
+      await setItemHidden(confirmHideItem.id, true)
+      setItems(prev => prev.filter(i => i.id !== confirmHideItem.id))
+      setTotal(prev => prev - 1)
+      setConfirmHideItem(null)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setHiding(false)
+    }
+  }
+
   async function handleTrackChange(item, priority) {
     setUpdating(item.id)
     try {
@@ -216,6 +235,24 @@ export default function Items() {
         <h1>道具列表</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>共 {total} 筆</span>
+          <button
+            className="btn-add"
+            style={{ background: '#16a34a' }}
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              try { await exportExcel() } catch (err) { alert(err.message) } finally { setExporting(false) }
+            }}
+          >{exporting ? '產生中...' : '匯出 Excel'}</button>
+          <button
+            className="btn-add"
+            style={{ background: '#5865f2' }}
+            disabled={sendingDc}
+            onClick={async () => {
+              setSendingDc(true)
+              try { await sendExcelToDiscord(); alert('已發布到 Discord') } catch (err) { alert(err.message) } finally { setSendingDc(false) }
+            }}
+          >{sendingDc ? '發布中...' : '發布到 Discord'}</button>
           <button className="btn-add" onClick={() => { setForm(EMPTY_FORM); setShowCreate(true); listItemCategories(EMPTY_FORM.item_type).then(setCategories).catch(() => setCategories([])) }}>+ 新增商品</button>
         </div>
       </div>
@@ -300,6 +337,7 @@ export default function Items() {
               <th>歷史價格</th>
               <th>修改</th>
               <th>查詢優先度</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -359,6 +397,18 @@ export default function Items() {
                       ))}
                     </div>
                   )}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <button
+                    title="刪除"
+                    onClick={() => setConfirmHideItem(item)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', color: '#dc2626' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6m4-6v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                  </button>
                 </td>
               </tr>
             ))}
@@ -580,6 +630,28 @@ export default function Items() {
                 <button type="submit" className="btn-save" disabled={creating}>{creating ? '建立中...' : '建立'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {confirmHideItem && (
+        <div className="modal-overlay" onClick={() => setConfirmHideItem(null)}>
+          <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize: 20, marginBottom: 8 }}>確認刪除</h2>
+            <p style={{ color: '#374151', marginBottom: 4 }}>
+              確定要刪除 <strong>{confirmHideItem.name}</strong>？
+            </p>
+            <p style={{ color: '#6b7280', fontSize: 13, marginBottom: 24 }}>
+              刪除後此道具將不再出現於前台與後台，且無法復原。
+            </p>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setConfirmHideItem(null)} disabled={hiding}>取消</button>
+              <button
+                className="btn-save"
+                style={{ background: '#dc2626' }}
+                disabled={hiding}
+                onClick={handleConfirmHide}
+              >{hiding ? '刪除中...' : '確認刪除'}</button>
+            </div>
           </div>
         </div>
       )}
