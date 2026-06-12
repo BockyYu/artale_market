@@ -25,7 +25,7 @@ func (h *PriceHandler) GetScrollSummary(c *gin.Context) {
 		return
 	}
 	if body.Date == "" {
-		body.Date = time.Now().Format("2006-01-02")
+		body.Date = twToday()
 	}
 	if body.Page < 1 {
 		body.Page = 1
@@ -49,7 +49,7 @@ func (h *PriceHandler) GetSkillBookSummary(c *gin.Context) {
 		return
 	}
 	if body.Date == "" {
-		body.Date = time.Now().Format("2006-01-02")
+		body.Date = twToday()
 	}
 	if body.Page < 1 {
 		body.Page = 1
@@ -73,7 +73,7 @@ func (h *PriceHandler) GetEquipSummary(c *gin.Context) {
 		return
 	}
 	if body.Date == "" {
-		body.Date = time.Now().Format("2006-01-02")
+		body.Date = twToday()
 	}
 	if body.Page < 1 {
 		body.Page = 1
@@ -98,7 +98,7 @@ func (h *PriceHandler) RecordPrice(c *gin.Context) {
 	}
 
 	if input.Date == "" {
-		input.Date = time.Now().Format("2006-01-02")
+		input.Date = twToday()
 	} else if _, err := time.Parse("2006-01-02", input.Date); err != nil {
 		respBadRequest(c, err)
 		return

@@ -201,12 +201,13 @@ export async function exportExcel() {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error || `HTTP ${res.status}`)
   }
+  const disposition = res.headers.get('Content-Disposition')
+  const filename = disposition?.match(/filename="([^"]+)"/)?.[1] ?? 'artale_market.xlsx'
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  const today = new Date().toISOString().slice(0, 10)
   a.href = url
-  a.download = `artale_market_${today}.xlsx`
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

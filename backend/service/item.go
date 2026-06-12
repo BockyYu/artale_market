@@ -52,7 +52,7 @@ func (s *itemService) GetAllWithLatestPrice(sortBy, search string, filterType, f
 		return nil, err
 	}
 
-	today := time.Now().Format("2006-01-02")
+	today := time.Now().In(time.FixedZone("Asia/Taipei", 8*60*60)).Format("2006-01-02")
 	views, _ := s.queryRepo.GetAllItemViews(today)
 	for i := range rows {
 		rows[i].TodayViews = views[rows[i].ID]

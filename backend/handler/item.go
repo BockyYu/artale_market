@@ -20,8 +20,8 @@ import (
 )
 
 type ItemHandler struct {
-	svc         service.ItemService
-	queryRepo   repository.QueryRepository
+	svc          service.ItemService
+	queryRepo    repository.QueryRepository
 	categoryRepo repository.CategoryRepository
 }
 
@@ -113,13 +113,13 @@ func (h *ItemHandler) GetByID(c *gin.Context) {
 		respNotFound(c, err)
 		return
 	}
-	today := time.Now().Format("2006-01-02")
+	today := twToday()
 	go func() { _ = h.queryRepo.RecordItemView(id, today) }()
 	respOK(c, summary)
 }
 
 func (h *ItemHandler) GetTracked(c *gin.Context) {
-	today := time.Now().Format("2006-01-02")
+	today := twToday()
 	items, err := h.svc.GetTracked(today)
 	if err != nil {
 		respInternal(c, err)
@@ -179,6 +179,19 @@ func (h *ItemHandler) buildExcel(dates [7]string) (*excelize.File, string, error
 		Font: &excelize.Font{Bold: true},
 	})
 
+	grayFmt, _ := f.NewConditionalStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"D9D9D9"}},
+	})
+	greenFmt, _ := f.NewConditionalStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"E2EFDA"}},
+	})
+	blueFmt, _ := f.NewConditionalStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"BDD7EE"}},
+	})
+	yellowFmt, _ := f.NewConditionalStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"FFEB9C"}},
+	})
+
 	priceFields := func(row model.ExportRow) [7]*float64 {
 		return [7]*float64{row.D0Price, row.D1Price, row.D2Price, row.D3Price, row.D4Price, row.D5Price, row.D6Price}
 	}
@@ -233,6 +246,16 @@ func (h *ItemHandler) buildExcel(dates [7]string) (*excelize.File, string, error
 		f.SetColWidth(ws, "A", "A", 36)
 		f.SetColWidth(ws, "B", "B", 14)
 		f.SetColWidth(ws, "C", lastCol, 14)
+
+		if len(sheet.rows) > 0 {
+			priceRange := fmt.Sprintf("C2:%s%d", lastCol, len(sheet.rows)+1)
+			f.SetConditionalFormat(ws, priceRange, []excelize.ConditionalFormatOptions{
+				{Type: "cell", Criteria: "<", Value: "1000000", Format: &grayFmt},
+				{Type: "cell", Criteria: "between", MinValue: "1000000", MaxValue: "9999999", Format: &greenFmt},
+				{Type: "cell", Criteria: "between", MinValue: "10000000", MaxValue: "99999999", Format: &blueFmt},
+				{Type: "cell", Criteria: ">=", Value: "100000000", Format: &yellowFmt},
+			})
+		}
 	}
 
 	filename := fmt.Sprintf("artale_market_%s.xlsx", dates[0])
@@ -240,7 +263,7 @@ func (h *ItemHandler) buildExcel(dates [7]string) (*excelize.File, string, error
 }
 
 func (h *ItemHandler) ExportExcel(c *gin.Context) {
-	loc, _ := time.LoadLocation("Asia/Taipei")
+	loc := time.FixedZone("Asia/Taipei", 8*60*60)
 	ref := time.Now().In(loc)
 	var dates [7]string
 	for i := range dates {
@@ -268,7 +291,7 @@ func (h *ItemHandler) SendExcelToDiscord(c *gin.Context) {
 		return
 	}
 
-	loc, _ := time.LoadLocation("Asia/Taipei")
+	loc := time.FixedZone("Asia/Taipei", 8*60*60)
 	ref := time.Now().In(loc)
 	var dates [7]string
 	for i := range dates {
@@ -299,7 +322,7 @@ func (h *ItemHandler) SendExcelToDiscord(c *gin.Context) {
 		respInternal(c, err)
 		return
 	}
-	w.WriteField("payload_json", fmt.Sprintf(`{"content":"📊 Artale Market 價格報表 %s"}`, dates[0]))
+	w.WriteField("payload_json", fmt.Sprintf(`{"content":"📊 Artale Market 拍賣價格報表(僅參考用途) %s"}`, dates[0]))
 	w.Close()
 
 	resp, err := http.Post(webhookURL, w.FormDataContentType(), &body)
@@ -320,4 +343,3 @@ func mustCell(col, row int) string {
 	cell, _ := excelize.CoordinatesToCellName(col, row)
 	return cell
 }
-
