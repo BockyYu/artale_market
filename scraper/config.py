@@ -41,6 +41,24 @@ BETWEEN_ITEMS_DELAY = float(os.getenv("BETWEEN_ITEMS_DELAY", "3.0"))
 # 點擊裝備列表第一筆後，等待詳情面板載入的時間
 AFTER_ROW_CLICK_DELAY = float(os.getenv("AFTER_ROW_CLICK_DELAY", "1.0"))
 
+# 被踢出拍賣畫面後的等待時間（秒），預設 300（5分鐘）
+AUCTION_WAIT_SECS = int(os.getenv("AUCTION_WAIT_SECS", "300"))
+# 重新進入拍賣的按鈕位置（相對視窗左上角），用 --set-auction-btn 校準後填入 .env
+_auction_btn = os.getenv("AUCTION_BTN_POS", "0,0").split(",")
+AUCTION_BTN_POS: tuple[int, int] = (int(_auction_btn[0]), int(_auction_btn[1]))
+# 拍賣搜尋輸入框位置（相對視窗左上角），用 --set-search-box 校準後填入 .env
+_search_box = os.getenv("SEARCH_BOX_POS", "0,0").split(",")
+SEARCH_BOX_POS: tuple[int, int] = (int(_search_box[0]), int(_search_box[1]))
+# 「每個價錢」欄位標題點擊位置（相對視窗左上角），用 --set-price-sort 校準後填入 .env
+_price_sort = os.getenv("PRICE_SORT_POS", "0,0").split(",")
+PRICE_SORT_POS: tuple[int, int] = (int(_price_sort[0]), int(_price_sort[1]))
+# 排序後第一筆價格列的點擊位置，用 --set-price-row 校準後填入 .env
+_price_row = os.getenv("PRICE_ROW_POS", "0,0").split(",")
+PRICE_ROW_POS: tuple[int, int] = (int(_price_row[0]), int(_price_row[1]))
+# 離開拍賣畫面的按鈕位置，用 --set-auction-exit 校準後填入 .env
+_auction_exit = os.getenv("AUCTION_EXIT_POS", "0,0").split(",")
+AUCTION_EXIT_POS: tuple[int, int] = (int(_auction_exit[0]), int(_auction_exit[1]))
+
 # 價格欄位擷取區域（視窗相對座標，由 --track-mouse 校準）
 # 格式：x1,y1,x2,y2
 # 裝備類型（左側欄）

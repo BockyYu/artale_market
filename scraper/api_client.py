@@ -69,7 +69,14 @@ def fetch_alert_map() -> dict[int, dict]:
         if not isinstance(items, list):
             return {}
         return {
-            i["item_id"]: {"threshold_price": i.get("threshold_price", 0), "bot_id": i.get("bot_id")}
+            i["item_id"]: {
+                "threshold_price": i.get("threshold_price", 0),
+                "bot_id": i.get("bot_id"),
+                "item_name": i.get("item_name", ""),
+                "english_name": i.get("english_name", ""),
+                "search_mode": i.get("search_mode", 1),
+                "item_type": i.get("item_type", 1),
+            }
             for i in items
             if i.get("item_id") is not None
         }
@@ -81,6 +88,20 @@ def fetch_latest_price(item_id: int) -> int | None:
     """取得指定商品最近一筆價格記錄，若無資料則回傳 None。"""
     try:
         r = requests.get(f"{API_BASE_URL}/api/items/{item_id}/prices/latest", timeout=10)
+        if r.ok:
+            data = r.json()
+            price = data.get("price")
+            if price is not None:
+                return int(price)
+    except Exception:
+        pass
+    return None
+
+
+def fetch_today_price(item_id: int) -> int | None:
+    """取得指定商品今日已記錄的最低價，若今日尚未有記錄則回傳 None。"""
+    try:
+        r = requests.get(f"{API_BASE_URL}/api/items/{item_id}/prices/today", timeout=10)
         if r.ok:
             data = r.json()
             price = data.get("price")

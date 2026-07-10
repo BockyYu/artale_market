@@ -19,10 +19,10 @@ from datetime import datetime
 
 import schedule
 
-from api_client import fetch_items, fetch_unrecorded_items, fetch_alert_map, fetch_latest_price, record_price
+from api_client import fetch_items, fetch_unrecorded_items, fetch_alert_map, fetch_latest_price, fetch_today_price, record_price
 from config import BETWEEN_ITEMS_DELAY, SCHEDULE_TIME, SCHEDULE_INTERVAL_MINUTES
 from notify import send_message, build_alert_message, build_price_surge_message, build_price_changes_summary
-from scraper import get_game_window, scrape_item, verify_price_header
+from scraper import get_game_window, scrape_item, verify_price_header, is_in_auction_screen, enter_auction, reenter_auction, exit_auction
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,7 +43,7 @@ def _parse_region(s: str) -> tuple[int, int, int, int]:
     return tuple(parts)  # type: ignore
 
 
-def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, default_region=None) -> None:
+def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, default_region=None, auction_btn=None) -> None:
     mode_label = "（補漏模式）" if fill_missing else ""
     logger.info("=" * 50)
     logger.info(f"開始抓取{'（模擬模式）' if dry_run else ''}{mode_label}")
@@ -56,6 +56,9 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
         return
 
     try:
+        if not enter_auction(win, btn_pos=auction_btn):
+            logger.error("無法進入拍賣畫面，請確認按鈕座標設定正確（執行 --set-auction-btn）")
+            return
         verify_price_header(win)
     except RuntimeError as e:
         logger.error(f"前置檢查失敗：{e}")
@@ -70,6 +73,20 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
         logger.error(f"無法取得商品列表: {e}")
         return
 
+    alert_map = fetch_alert_map()
+
+    # 把有告警但不在追蹤清單的道具也加入抓取
+    tracked_ids = {i["item_id"] for i in items}
+    for item_id, alert in alert_map.items():
+        if item_id not in tracked_ids:
+            items.append({
+                "item_id": item_id,
+                "item_name": alert.get("item_name", f"item_{item_id}"),
+                "english_name": alert.get("english_name", ""),
+                "search_mode": alert.get("search_mode", 1),
+                "item_type": alert.get("item_type", 1),
+            })
+
     if not items:
         if fill_missing:
             logger.info("今天所有追蹤商品都已有價格記錄，無需補漏")
@@ -77,13 +94,12 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
             logger.warning("商品列表為空，結束")
         return
 
-    logger.info(f"共 {len(items)} 個商品待抓取")
-
-    alert_map = fetch_alert_map()
+    logger.info(f"共 {len(items)} 個商品待抓取（含告警專用道具）")
 
     ok, fail = 0, []
     changed_items = []
     total = len(items)
+    consecutive_fails = 0
 
     for idx, item in enumerate(items, 1):
         name = item.get("item_name", "")
@@ -102,15 +118,31 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
             price = scrape_item(win, search_name, item_type, equip_region=equip_region, default_region=default_region)
 
             if price is None:
+                consecutive_fails += 1
                 logger.warning(f"▶ [{idx}/{total}] {name} → 找不到價格，跳過")
                 fail.append(name)
+                if consecutive_fails >= 2:
+                    logger.warning("  連續 2 筆找不到價格，檢查是否已離開拍賣畫面...")
+                    if not is_in_auction_screen(win):
+                        logger.warning("  已離開拍賣畫面，準備重新進入")
+                        if reenter_auction(win, btn_pos=auction_btn):
+                            verify_price_header(win)
+                            consecutive_fails = 0
+                        else:
+                            logger.error("  無法重新進入拍賣畫面，終止本次抓取")
+                            break
             else:
+                consecutive_fails = 0
                 if dry_run:
                     logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 模擬模式，不寫入")
                     ok += 1
                 else:
                     prev_price = fetch_latest_price(item_id)
-                    if record_price(item_id, price):
+                    today_price = fetch_today_price(item_id)
+                    if today_price is not None and today_price == price:
+                        logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 今日最低價相同，略過寫入")
+                        ok += 1
+                    elif record_price(item_id, price):
                         logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 已寫入 DB")
                         ok += 1
                     else:
@@ -158,6 +190,8 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
         logger.warning(f"失敗項目（{len(fail)} 筆）：{', '.join(fail)}")
     logger.info("=" * 50)
 
+    exit_auction(win)
+
     if not dry_run:
         msg = f"✅ 抓取完成：{ok}/{len(items)} 筆成功"
         if fail:
@@ -171,6 +205,95 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
                 logger.info(f"  已發送價格異動摘要（{len(changed_items)} 筆）")
             else:
                 logger.warning("  價格異動摘要發送失敗")
+
+
+def _update_env(key: str, value: str) -> None:
+    """在 .env 更新或新增指定的 key=value，其他行保持不變。"""
+    from pathlib import Path
+    env_path = Path(__file__).parent / ".env"
+    lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+    found = False
+    for i, line in enumerate(lines):
+        if line.startswith(f"{key}="):
+            lines[i] = f"{key}={value}"
+            found = True
+            break
+    if not found:
+        lines.append(f"{key}={value}")
+    env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def set_auction_btn() -> None:
+    """互動式設定拍賣按鈕座標並存入 .env。"""
+    from scraper import get_game_window, calibrate_auction_btn
+    win = get_game_window()
+    bx, by = calibrate_auction_btn(win)
+    _update_env("AUCTION_BTN_POS", f"{bx},{by}")
+    logger.info(f"已將 AUCTION_BTN_POS={bx},{by} 寫入 .env")
+
+
+def _calibrate_pos(win, prompt: str) -> tuple[int, int]:
+    import threading
+    import pyautogui as _pag
+    print(f"\n{prompt}，準備好後按 Enter 確認\n")
+    _stop = threading.Event()
+    def _show():
+        while not _stop.is_set():
+            sx, sy = _pag.position()
+            print(f"\r  視窗相對座標：({sx - win.left:5d}, {sy - win.top:5d})   ", end="", flush=True)
+            time.sleep(0.05)
+    t = threading.Thread(target=_show, daemon=True)
+    t.start()
+    input()
+    _stop.set()
+    sx, sy = _pag.position()
+    bx, by = sx - win.left, sy - win.top
+    print(f"\n已記錄座標：({bx}, {by})")
+    return bx, by
+
+
+def set_price_row() -> None:
+    """互動式設定第一筆價格列點擊座標並存入 .env。"""
+    from scraper import get_game_window
+    print("請先在遊戲中開啟拍賣畫面並搜尋任一道具，讓列表顯示後按任意鍵繼續...")
+    input()
+    win = get_game_window()
+    bx, by = _calibrate_pos(win, "請將滑鼠移到第一筆價格列上")
+    _update_env("PRICE_ROW_POS", f"{bx},{by}")
+    logger.info(f"已將 PRICE_ROW_POS={bx},{by} 寫入 .env")
+
+
+def set_auction_exit() -> None:
+    """互動式設定離開拍賣按鈕座標並存入 .env。"""
+    from scraper import get_game_window
+    print("請先在遊戲中開啟拍賣畫面，讓離開按鈕可見後按任意鍵繼續...")
+    input()
+    win = get_game_window()
+    bx, by = _calibrate_pos(win, "請將滑鼠移到離開拍賣的按鈕上")
+    _update_env("AUCTION_EXIT_POS", f"{bx},{by}")
+    logger.info(f"已將 AUCTION_EXIT_POS={bx},{by} 寫入 .env")
+
+
+def set_price_sort() -> None:
+    """互動式設定「每個價錢」排序欄位座標並存入 .env。"""
+    from scraper import get_game_window
+    print("請先在遊戲中手動開啟拍賣畫面，確認「每個價錢」欄位標題可見後按任意鍵繼續...")
+    input()
+    win = get_game_window()
+    bx, by = _calibrate_pos(win, "請將滑鼠移到「每個價錢」欄位標題上")
+    _update_env("PRICE_SORT_POS", f"{bx},{by}")
+    logger.info(f"已將 PRICE_SORT_POS={bx},{by} 寫入 .env")
+
+
+def set_search_box() -> None:
+    """互動式設定拍賣搜尋輸入框座標並存入 .env。"""
+    from scraper import get_game_window, calibrate_search_box
+    print("請先在遊戲中手動開啟拍賣畫面，確認搜尋輸入框可見後按任意鍵繼續...")
+    input()
+    win = get_game_window()
+    bx, by = calibrate_search_box(win)
+    _update_env("SEARCH_BOX_POS", f"{bx},{by}")
+    logger.info(f"已將 SEARCH_BOX_POS={bx},{by} 寫入 .env")
 
 
 def debug_ocr() -> None:
@@ -262,12 +385,46 @@ def main() -> None:
                         help="覆蓋裝備價格擷取區域（視窗相對座標），例如 1427,412,1713,501")
     parser.add_argument("--default-region", default=None, metavar="x1,y1,x2,y2",
                         help="覆蓋卷軸/技能書價格擷取區域，例如 1722,415,1975,503")
+    parser.add_argument("--auction-btn", default=None, metavar="x,y",
+                        help="拍賣按鈕的視窗相對座標，例如 1820,1050（覆蓋 .env 的 AUCTION_BTN_POS）")
+    parser.add_argument("--set-auction-btn", action="store_true",
+                        help="互動式校準並儲存拍賣按鈕座標到 .env")
+    parser.add_argument("--set-search-box", action="store_true",
+                        help="互動式校準並儲存拍賣搜尋輸入框座標到 .env")
+    parser.add_argument("--set-price-sort", action="store_true",
+                        help="互動式校準並儲存「每個價錢」排序欄位座標到 .env")
+    parser.add_argument("--set-price-row", action="store_true",
+                        help="互動式校準並儲存第一筆價格列點擊座標到 .env")
+    parser.add_argument("--set-auction-exit", action="store_true",
+                        help="互動式校準並儲存離開拍賣按鈕座標到 .env")
     args = parser.parse_args()
 
     dry_run: bool = args.dry_run
     fill_missing: bool = args.fill_missing
     equip_region = _parse_region(args.equip_region) if args.equip_region else None
     default_region = _parse_region(args.default_region) if args.default_region else None
+
+    auction_btn = tuple(int(v) for v in args.auction_btn.split(",")) if args.auction_btn else None
+
+    if args.set_auction_btn:
+        set_auction_btn()
+        return
+
+    if args.set_search_box:
+        set_search_box()
+        return
+
+    if args.set_price_sort:
+        set_price_sort()
+        return
+
+    if args.set_price_row:
+        set_price_row()
+        return
+
+    if args.set_auction_exit:
+        set_auction_exit()
+        return
 
     if args.test_notify:
         from notify import _get_active_bot_ids
@@ -295,15 +452,15 @@ def main() -> None:
         return
 
     if args.now:
-        run(dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region)
+        run(dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region, auction_btn=auction_btn)
         return
 
     if args.interval:
         logger.info(f"間隔模式：每 {SCHEDULE_INTERVAL_MINUTES} 分鐘自動執行")
         logger.info("按 Ctrl+C 停止")
-        run(dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region)
+        run(dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region, auction_btn=auction_btn)
         schedule.every(SCHEDULE_INTERVAL_MINUTES).minutes.do(
-            run, dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region
+            run, dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region, auction_btn=auction_btn
         )
         try:
             while True:
@@ -318,7 +475,7 @@ def main() -> None:
     logger.info("按 Ctrl+C 停止")
 
     schedule.every().day.at(run_time).do(
-        run, dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region
+        run, dry_run=dry_run, fill_missing=fill_missing, equip_region=equip_region, default_region=default_region, auction_btn=auction_btn
     )
 
     try:

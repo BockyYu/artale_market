@@ -95,8 +95,14 @@ return results
 from config import (
     AFTER_SEARCH_DELAY,
     AFTER_SORT_DELAY,
+    AUCTION_BTN_POS,
+    AUCTION_EXIT_POS,
+    AUCTION_WAIT_SECS,
     PRICE_REGION_DEFAULT,
     PRICE_REGION_EQUIP,
+    PRICE_ROW_POS,
+    PRICE_SORT_POS,
+    SEARCH_BOX_POS,
     WINDOW_TITLE,
 )
 
@@ -197,11 +203,18 @@ def _capture_full(win) -> tuple[np.ndarray, int, int]:
 
 def _find_search_box(win) -> tuple[int, int]:
     """
-    OCR 自動偵測搜尋輸入框（「請輸入道具名稱」）位置，結果快取。
-    找不到則拋出 RuntimeError。
+    回傳搜尋輸入框的視窗相對座標 (cx, cy)。
+    優先使用 .env 的 SEARCH_BOX_POS，否則 OCR 偵測並快取。
     """
     global _search_box_cache
     if _search_box_cache is not None:
+        return _search_box_cache
+
+    # 優先使用 .env 固定座標（跳過 OCR）
+    sx, sy = SEARCH_BOX_POS
+    if sx != 0 or sy != 0:
+        _search_box_cache = (sx, sy)
+        logger.info(f"  使用 .env 搜尋框座標：({sx},{sy})")
         return _search_box_cache
 
     logger.info("  自動偵測搜尋輸入框位置...")
@@ -223,14 +236,21 @@ def _find_search_box(win) -> tuple[int, int]:
 def search_item(win, item_name: str) -> None:
     """在搜尋欄輸入商品名稱並送出。"""
     cx, cy = _find_search_box(win)
-    pyautogui.click(win.left + cx, win.top + cy)
+    try:
+        win.activate()
+    except Exception:
+        pass
     time.sleep(0.3)
-    pyautogui.hotkey(_MOD_KEY, "a")
+    pyautogui.click(win.left + cx, win.top + cy)
+    time.sleep(0.5)
+    pyautogui.hotkey(_MOD_KEY, "a")  # 選取全部
+    time.sleep(0.1)
+    pyautogui.press("delete")        # 刪除選取內容，確保欄位清空
     time.sleep(0.1)
     pyperclip.copy(item_name)
-    time.sleep(0.1)
+    time.sleep(0.3)                  # 確保 pbcopy 完成
     pyautogui.hotkey(_MOD_KEY, "v")
-    time.sleep(0.4)
+    time.sleep(0.5)
     pyautogui.press("enter")
     logger.info(f"  搜尋送出: {item_name}")
     time.sleep(AFTER_SEARCH_DELAY)
@@ -249,6 +269,14 @@ def _find_price_header(win, item_type: int = 0) -> tuple[int, int, int, int, int
     if _UNIVERSAL_CACHE_KEY in _price_header_cache:
         _price_header_cache[item_type] = _price_header_cache[_UNIVERSAL_CACHE_KEY]
         logger.info(f"  使用啟動快取欄位座標 (item_type={item_type})")
+        return _price_header_cache[item_type]
+
+    # 優先使用 .env 固定座標（跳過 OCR）
+    px, py = PRICE_SORT_POS
+    if px != 0 or py != 0:
+        _price_header_cache[_UNIVERSAL_CACHE_KEY] = (px, py, max(0, px - 60), px + 60, py + 20)
+        _price_header_cache[item_type] = _price_header_cache[_UNIVERSAL_CACHE_KEY]
+        logger.info(f"  使用 .env 排序欄位座標：({px},{py})")
         return _price_header_cache[item_type]
 
     logger.info("  自動偵測「每個價錢」欄位位置...")
@@ -385,14 +413,132 @@ def read_price_from_region(win, x1: int, y1: int, x2: int, y2: int) -> int | Non
 
 
 # ---------------------------------------------------------------------------
+# 拍賣畫面偵測與自動重進
+# ---------------------------------------------------------------------------
+
+def calibrate_auction_btn(win) -> tuple[int, int]:
+    """
+    互動式校準拍賣按鈕座標。
+    移動滑鼠到拍賣按鈕上，按 Enter 確認，回傳視窗相對座標 (x, y)。
+    """
+    import threading
+    print("\n請將滑鼠移到右下角的拍賣按鈕上，準備好後按 Enter 確認")
+    print("（即時顯示視窗相對座標，按 Enter 鎖定）\n")
+
+    _stop = threading.Event()
+
+    def _show():
+        while not _stop.is_set():
+            sx, sy = pyautogui.position()
+            wx, wy = sx - win.left, sy - win.top
+            print(f"\r  視窗相對座標：({wx:5d}, {wy:5d})   ", end="", flush=True)
+            time.sleep(0.05)
+
+    t = threading.Thread(target=_show, daemon=True)
+    t.start()
+    input()
+    _stop.set()
+
+    sx, sy = pyautogui.position()
+    bx, by = sx - win.left, sy - win.top
+    print(f"\n已記錄拍賣按鈕座標：({bx}, {by})")
+    return bx, by
+
+
+def calibrate_search_box(win) -> tuple[int, int]:
+    """
+    互動式校準搜尋輸入框座標。
+    移動滑鼠到搜尋框上，按 Enter 確認，回傳視窗相對座標 (x, y)。
+    """
+    import threading
+    print("\n請將滑鼠移到拍賣搜尋輸入框上，準備好後按 Enter 確認")
+    print("（即時顯示視窗相對座標，按 Enter 鎖定）\n")
+
+    _stop = threading.Event()
+
+    def _show():
+        while not _stop.is_set():
+            sx, sy = pyautogui.position()
+            wx, wy = sx - win.left, sy - win.top
+            print(f"\r  視窗相對座標：({wx:5d}, {wy:5d})   ", end="", flush=True)
+            time.sleep(0.05)
+
+    t = threading.Thread(target=_show, daemon=True)
+    t.start()
+    input()
+    _stop.set()
+
+    sx, sy = pyautogui.position()
+    bx, by = sx - win.left, sy - win.top
+    print(f"\n已記錄搜尋框座標：({bx}, {by})")
+    return bx, by
+
+
+def is_in_auction_screen(win) -> bool:
+    """截圖並 OCR，判斷目前是否仍在拍賣畫面。"""
+    img, _, _ = _capture_full(win)
+    results = _get_reader().readtext(img)
+    scale = _get_scale_factor(win)
+    for _, text, _ in results:
+        t = text.replace(" ", "")
+        if "請輸入" in t or "每個" in t:
+            return True
+    return False
+
+
+def reset_auction_caches() -> None:
+    """清除介面元素快取，讓 verify_price_header 在重進後重新偵測。"""
+    global _search_box_cache, _price_header_cache
+    _search_box_cache = None
+    _price_header_cache = {}
+
+
+def enter_auction(win, btn_pos: tuple[int, int] | None = None) -> bool:
+    """
+    點擊拍賣按鈕進入拍賣畫面，回傳是否成功。
+    btn_pos 優先，否則使用 AUCTION_BTN_POS（.env）。
+    """
+    bx, by = btn_pos if btn_pos else AUCTION_BTN_POS
+    if bx == 0 and by == 0:
+        logger.error("未設定拍賣按鈕座標（AUCTION_BTN_POS），請先執行 --set-auction-btn")
+        return False
+
+    try:
+        win.activate()
+    except Exception:
+        pass
+    time.sleep(0.5)
+
+    pyautogui.click(win.left + bx, win.top + by)
+    logger.info(f"  已點擊拍賣按鈕 ({bx}, {by})，等待畫面載入...")
+    time.sleep(3.0)
+
+    reset_auction_caches()
+
+    if is_in_auction_screen(win):
+        logger.info("  成功進入拍賣畫面")
+        return True
+
+    logger.warning("  點擊後仍未偵測到拍賣介面，可能需要調整按鈕座標")
+    return False
+
+
+def reenter_auction(win, wait_secs: int = AUCTION_WAIT_SECS, btn_pos: tuple[int, int] | None = None) -> bool:
+    """被踢出後等待 wait_secs 秒再重新進入。"""
+    logger.info(f"  離開拍賣畫面，等待 {wait_secs} 秒後重新進入...")
+    time.sleep(wait_secs)
+    return enter_auction(win, btn_pos=btn_pos)
+
+
+# ---------------------------------------------------------------------------
 # 主要入口
 # ---------------------------------------------------------------------------
 
 def verify_price_header(win) -> None:
     """
-    首次呼叫時偵測搜尋框與「每個價錢」欄位位置並快取；
-    後續呼叫若快取已存在則直接沿用，不重複 OCR。
-    任一找不到則拋出 RuntimeError，終止本次執行。
+    確認搜尋框與「每個價錢」欄位座標已就緒。
+    若 .env 已設定 SEARCH_BOX_POS 與 PRICE_SORT_POS，直接使用，完全跳過 OCR。
+    否則做一次 OCR 偵測並快取，後續呼叫沿用快取。
     """
     global _search_box_cache, _price_header_cache
 
@@ -400,36 +546,70 @@ def verify_price_header(win) -> None:
         logger.info("  沿用已快取的介面元素座標")
         return
 
+    # .env 已有固定座標：直接套用，不做 OCR
+    sx, sy = SEARCH_BOX_POS
+    px, py = PRICE_SORT_POS
+    if (sx != 0 or sy != 0) and (px != 0 or py != 0):
+        _search_box_cache = (sx, sy)
+        _price_header_cache[_UNIVERSAL_CACHE_KEY] = (px, py, max(0, px - 60), px + 60, py + 20)
+        logger.info(f"  使用 .env 座標：搜尋框=({sx},{sy})，排序欄=({px},{py})")
+        return
+
+    # .env 只設了其中一個：先套用已設定的，剩下的才用 OCR
+    if _search_box_cache is None and (sx != 0 or sy != 0):
+        _search_box_cache = (sx, sy)
+        logger.info(f"  使用 .env 搜尋框座標：({sx},{sy})")
+
+    if _UNIVERSAL_CACHE_KEY not in _price_header_cache and (px != 0 or py != 0):
+        _price_header_cache[_UNIVERSAL_CACHE_KEY] = (px, py, max(0, px - 60), px + 60, py + 20)
+        logger.info(f"  使用 .env 排序欄位座標：({px},{py})")
+
+    if _search_box_cache is not None and _UNIVERSAL_CACHE_KEY in _price_header_cache:
+        return
+
     logger.info("  偵測介面元素（搜尋框 + 每個價錢欄位）...")
     img, _, _ = _capture_full(win)
     results = _get_reader().readtext(img)
-
     scale = _get_scale_factor(win)
 
-    # 偵測搜尋框
-    for bbox, text, _ in results:
-        if any(k in text.replace(" ", "") for k in ["請輸入", "道具名稱", "輸入道具"]):
-            cx = int((bbox[0][0] + bbox[2][0]) / 2 / scale)
-            cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
-            _search_box_cache = (cx, cy)
-            logger.info(f"  搜尋框：center=({cx},{cy})")
-            break
-
     if _search_box_cache is None:
-        raise RuntimeError("無法偵測搜尋輸入框，請確認遊戲畫面正確顯示拍賣介面")
+        for bbox, text, _ in results:
+            if any(k in text.replace(" ", "") for k in ["請輸入", "道具名稱", "輸入道具"]):
+                cx = int((bbox[0][0] + bbox[2][0]) / 2 / scale)
+                cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
+                _search_box_cache = (cx, cy)
+                logger.info(f"  搜尋框：center=({cx},{cy})")
+                break
+        if _search_box_cache is None:
+            raise RuntimeError("無法偵測搜尋輸入框，請確認遊戲畫面正確顯示拍賣介面")
 
-    # 偵測「每個價錢」欄位（共用同一份 OCR 結果，不需再次截圖）
-    for bbox, text, _ in results:
-        if "每個" in text.replace(" ", ""):
-            x1, x2 = int(bbox[0][0] / scale), int(bbox[2][0] / scale)
-            cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
-            cx = (x1 + x2) // 2
-            pad = max(60, (x2 - x1) // 2)
-            _price_header_cache[_UNIVERSAL_CACHE_KEY] = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
-            logger.info(f"  每個價錢欄位：center=({cx},{cy})，擷取區間 x=[{max(0, x1-pad)},{x2+pad}]")
-            return
+    if _UNIVERSAL_CACHE_KEY not in _price_header_cache:
+        for bbox, text, _ in results:
+            if "每個" in text.replace(" ", ""):
+                x1, x2 = int(bbox[0][0] / scale), int(bbox[2][0] / scale)
+                cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
+                cx = (x1 + x2) // 2
+                pad = max(60, (x2 - x1) // 2)
+                _price_header_cache[_UNIVERSAL_CACHE_KEY] = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
+                logger.info(f"  每個價錢欄位：center=({cx},{cy})")
+                return
+        raise RuntimeError("無法偵測「每個價錢」欄位，請確認遊戲畫面正確顯示拍賣列表")
 
-    raise RuntimeError("無法偵測「每個價錢」欄位，請確認遊戲畫面正確顯示拍賣列表")
+
+def exit_auction(win) -> None:
+    """點擊離開拍賣的按鈕。"""
+    ex, ey = AUCTION_EXIT_POS
+    if ex == 0 and ey == 0:
+        logger.warning("  未設定離開拍賣按鈕座標（AUCTION_EXIT_POS），請執行 --set-auction-exit")
+        return
+    try:
+        win.activate()
+    except Exception:
+        pass
+    time.sleep(0.2)
+    pyautogui.click(win.left + ex, win.top + ey)
+    logger.info(f"  已點擊離開拍賣按鈕 ({ex}, {ey})")
+    time.sleep(1.0)
 
 
 def scrape_item(
@@ -439,7 +619,7 @@ def scrape_item(
     equip_region: tuple[int, int, int, int] | None = None,
     default_region: tuple[int, int, int, int] | None = None,
 ) -> int | None:
-    """搜尋單一商品並回傳最低單價。使用固定校準區域讀價，不需點擊列表行。"""
+    """搜尋單一商品並回傳最低單價。"""
     search_item(win, item_name)
     cx, cy, _, _, _ = _find_price_header(win, item_type)
     pyautogui.click(win.left + cx, win.top + cy)
