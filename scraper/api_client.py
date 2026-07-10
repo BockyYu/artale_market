@@ -84,6 +84,24 @@ def fetch_alert_map() -> dict[int, dict]:
         return {}
 
 
+def fetch_latest_prices_batch(item_ids: list[int]) -> dict[int, int]:
+    """批次取得多個商品的最新價格，回傳 {item_id: price}，查無資料的 id 不包含在內。"""
+    if not item_ids:
+        return {}
+    try:
+        r = requests.post(
+            f"{API_BASE_URL}/api/items/prices/latest-batch",
+            json={"item_ids": item_ids},
+            timeout=10,
+        )
+        if r.ok:
+            data = r.json().get("data", {})
+            return {int(k): int(v) for k, v in data.items()}
+    except Exception:
+        pass
+    return {}
+
+
 def fetch_latest_price(item_id: int) -> int | None:
     """取得指定商品最近一筆價格記錄，若無資料則回傳 None。"""
     try:

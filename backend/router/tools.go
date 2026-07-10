@@ -7,6 +7,7 @@ func registerTools(g *gin.RouterGroup, d *Deps) {
 	g.GET("/items/tracked", d.Item.GetTracked)
 	g.POST("/items/:id/prices", d.Price.RecordPrice)
 	g.GET("/items/:id/prices/latest", d.Price.GetLatest)
+	g.POST("/items/prices/latest-batch", d.Price.GetLatestBatch)
 	g.GET("/items", d.Item.GetAll)
 	g.POST("/items", d.Item.Create)
 	g.PUT("/items/:id", d.Item.Update)

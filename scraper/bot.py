@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 import requests
 import schedule
 
-from api_client import fetch_today_price
+from api_client import fetch_latest_prices_batch
 from config import API_BASE_URL, BETWEEN_ITEMS_DELAY, SCHEDULE_INTERVAL_MINUTES
 from notify import send_message, build_alert_message
 from scraper import get_game_window, scrape_item, verify_price_header, is_in_auction_screen, enter_auction, reenter_auction, exit_auction
@@ -109,8 +109,12 @@ class AlertBot:
 
         ok, fail = 0, []
         consecutive_fails = 0
-
         total = len(items)
+
+        # 一次批次取回所有商品的最新 DB 價格，loop 內直接查 dict
+        all_ids = [i["item_id"] for i in items if i.get("item_id") is not None]
+        latest_price_map = fetch_latest_prices_batch(all_ids)
+
         for idx, item in enumerate(items, 1):
             name            = item.get("item_name", "")
             item_id         = item.get("item_id")
@@ -147,9 +151,9 @@ class AlertBot:
                                 break
                 else:
                     consecutive_fails = 0
-                    today_price = fetch_today_price(item_id)
-                    if today_price is not None and today_price == price:
-                        logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 今日最低價相同，略過寫入")
+                    latest_price = latest_price_map.get(item_id)
+                    if latest_price is not None and latest_price == price:
+                        logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 與 DB 最新價格相同，略過寫入")
                         ok += 1
                     elif self._record_price(item_id, price):
                         logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 已寫入 DB")

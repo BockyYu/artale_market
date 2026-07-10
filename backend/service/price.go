@@ -16,6 +16,7 @@ type PriceService interface {
 	GetEquipSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error)
 	GetLatest(itemID uint) (*model.PriceRecord, error)
+	GetLatestBatch(itemIDs []uint) ([]model.PriceRecord, error)
 	GetHistory(itemID uint) ([]model.PriceRecord, error)
 	GetAllHistory(itemID uint) ([]model.PriceRecord, error)
 	GetPriceHistories(itemID uint) ([]model.PriceHistory, error)
@@ -283,6 +284,10 @@ func (svc *priceService) syncPriceRecord(itemID uint, recordedAt time.Time) erro
 
 func (svc *priceService) GetLatest(itemID uint) (*model.PriceRecord, error) {
 	return svc.priceRepo.FindLatestByItem(itemID)
+}
+
+func (svc *priceService) GetLatestBatch(itemIDs []uint) ([]model.PriceRecord, error) {
+	return svc.priceRepo.FindLatestByItems(itemIDs)
 }
 
 func (svc *priceService) GetHistory(itemID uint) ([]model.PriceRecord, error) {

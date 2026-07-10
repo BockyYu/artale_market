@@ -123,6 +123,26 @@ func (h *PriceHandler) RecordPrice(c *gin.Context) {
 	respOK(c, record)
 }
 
+func (h *PriceHandler) GetLatestBatch(c *gin.Context) {
+	var req struct {
+		ItemIDs []uint `json:"item_ids" binding:"required,min=1"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respBadRequest(c, err)
+		return
+	}
+	records, err := h.svc.GetLatestBatch(req.ItemIDs)
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	result := make(map[uint]float64, len(records))
+	for _, r := range records {
+		result[r.ItemID] = r.Price
+	}
+	respOK(c, gin.H{"data": result})
+}
+
 func (h *PriceHandler) GetLatest(c *gin.Context) {
 	record, err := h.svc.GetLatest(parseID(c))
 	if err != nil {
