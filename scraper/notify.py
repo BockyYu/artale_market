@@ -69,26 +69,47 @@ def build_alert_message(name: str, price: int, threshold: float, now: str) -> st
     )
 
 
+_TG_MAX_LEN = 4000  # Telegram 上限 4096，留緩衝
+
+
+def _split_message(text: str) -> list[str]:
+    """將超長訊息依段落切割為多段，每段不超過 _TG_MAX_LEN 字元。"""
+    if len(text) <= _TG_MAX_LEN:
+        return [text]
+    chunks, current = [], []
+    current_len = 0
+    for line in text.splitlines(keepends=True):
+        if current_len + len(line) > _TG_MAX_LEN and current:
+            chunks.append("".join(current))
+            current, current_len = [], 0
+        current.append(line)
+        current_len += len(line)
+    if current:
+        chunks.append("".join(current))
+    return chunks
+
+
 def send_message(text: str, bot_id: int | None = None) -> bool:
-    """發送訊息，回傳是否成功。"""
+    """發送訊息（自動分段），回傳是否全部成功。"""
+    chunks = _split_message(text)
     if bot_id:
-        return _send_via_backend(bot_id, text)
+        return all(_send_via_backend(bot_id, chunk) for chunk in chunks)
 
     # 從後端取得啟用中的 bot 清單，逐一發送
     bot_ids = _get_active_bot_ids()
     if bot_ids:
         sent = False
         for bid in bot_ids:
-            if _send_via_backend(bid, text):
+            if all(_send_via_backend(bid, chunk) for chunk in chunks):
                 sent = True
         return sent
 
     # 備用：直接發平台
     if NOTIFY_TG_BOT_TOKEN and NOTIFY_TG_CHAT_ID:
-        return _send_tg(NOTIFY_TG_BOT_TOKEN, NOTIFY_TG_CHAT_ID, text)
+        return all(_send_tg(NOTIFY_TG_BOT_TOKEN, NOTIFY_TG_CHAT_ID, chunk) for chunk in chunks)
 
     if NOTIFY_LINE_TOKEN:
-        return _send_line(NOTIFY_LINE_TOKEN, text)
+        return all(_send_line(NOTIFY_LINE_TOKEN, chunk) for chunk in chunks)
 
     logger.warning("[Notify] 後端無啟用中的 bot，且未設定備用 TG / LINE token")
     return False
