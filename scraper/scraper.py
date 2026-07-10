@@ -9,18 +9,88 @@
 import logging
 import platform
 import re
+import subprocess
 import time
 
 import easyocr
 import mss
 import numpy as np
 import pyautogui
-import pygetwindow as gw
 import pyperclip
 from PIL import Image
 
 _IS_MAC = platform.system() == "Darwin"
 _MOD_KEY = "command" if _IS_MAC else "ctrl"
+
+if not _IS_MAC:
+    import pygetwindow as gw
+
+
+class _MacWindow:
+    """macOS 視窗包裝，介面與 pygetwindow 相容。"""
+
+    def __init__(self, app_name: str, bounds: dict):
+        self._app_name = app_name
+        self.left = bounds["left"]
+        self.top = bounds["top"]
+        self.width = bounds["width"]
+        self.height = bounds["height"]
+        self.isMinimized = bounds.get("minimized", False)
+
+    def restore(self):
+        subprocess.run(
+            ["osascript", "-e",
+             f'tell application "{self._app_name}" to set miniaturized of window 1 to false'],
+            check=False,
+        )
+
+    def activate(self):
+        subprocess.run(
+            ["osascript", "-e", f'tell application "{self._app_name}" to activate'],
+            check=False,
+        )
+
+
+def _mac_get_windows_with_title(title: str) -> list[_MacWindow]:
+    script = f"""
+set matchTitle to "{title}"
+set results to {{}}
+tell application "System Events"
+    repeat with proc in (every process whose background only is false)
+        try
+            repeat with w in (every window of proc)
+                if name of w contains matchTitle then
+                    set b to position of w
+                    set s to size of w
+                    set end of results to {{appName:name of proc, x:item 1 of b, y:item 2 of b, w:item 1 of s, h:item 2 of s}}
+                end if
+            end repeat
+        end try
+    end repeat
+end tell
+return results
+"""
+    try:
+        out = subprocess.check_output(["osascript", "-e", script], stderr=subprocess.DEVNULL, timeout=10).decode().strip()
+    except subprocess.CalledProcessError:
+        return []
+    if not out:
+        return []
+    # osascript 回傳格式：appName:MapleStory ..., x:100, y:50, w:1280, h:720, ...
+    wins = []
+    for entry in out.split(", appName:"):
+        entry = entry.strip().lstrip("appName:")
+        try:
+            parts = dict(p.strip().split(":", 1) for p in ("appName:" + entry).split(", "))
+            wins.append(_MacWindow(parts["appName"], {
+                "left": int(parts["x"]),
+                "top": int(parts["y"]),
+                "width": int(parts["w"]),
+                "height": int(parts["h"]),
+            }))
+        except Exception:
+            continue
+    return wins
 
 from config import (
     AFTER_SEARCH_DELAY,
@@ -76,7 +146,10 @@ def _get_reader() -> easyocr.Reader:
 
 def get_game_window():
     """找到遊戲視窗並將其帶到前景。"""
-    wins = gw.getWindowsWithTitle(WINDOW_TITLE)
+    if _IS_MAC:
+        wins = _mac_get_windows_with_title(WINDOW_TITLE)
+    else:
+        wins = gw.getWindowsWithTitle(WINDOW_TITLE)
     if not wins:
         raise RuntimeError(f"找不到遊戲視窗，請確認已開啟：{WINDOW_TITLE}")
     win = wins[0]
@@ -86,7 +159,7 @@ def get_game_window():
     try:
         win.activate()
     except Exception:
-        pass  # Mac 上部分情況 activate() 會拋出例外，忽略即可
+        pass
     time.sleep(0.4)
     return win
 
