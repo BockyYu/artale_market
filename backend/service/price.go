@@ -15,6 +15,7 @@ type PriceService interface {
 	GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	GetEquipSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error)
+	GetLatest(itemID uint) (*model.PriceRecord, error)
 	GetHistory(itemID uint) ([]model.PriceRecord, error)
 	GetAllHistory(itemID uint) ([]model.PriceRecord, error)
 	GetPriceHistories(itemID uint) ([]model.PriceHistory, error)
@@ -234,6 +235,10 @@ func (svc *priceService) DeletePriceHistory(id uint) error {
 
 func (svc *priceService) TogglePriceHistoryHidden(id uint, isHidden bool) error {
 	return svc.historyRepo.ToggleHidden(id, isHidden)
+}
+
+func (svc *priceService) GetLatest(itemID uint) (*model.PriceRecord, error) {
+	return svc.priceRepo.FindLatestByItem(itemID)
 }
 
 func (svc *priceService) GetHistory(itemID uint) ([]model.PriceRecord, error) {

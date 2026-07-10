@@ -19,9 +19,9 @@ from datetime import datetime
 
 import schedule
 
-from api_client import fetch_items, fetch_unrecorded_items, fetch_alert_map, record_price
+from api_client import fetch_items, fetch_unrecorded_items, fetch_alert_map, fetch_latest_price, record_price
 from config import BETWEEN_ITEMS_DELAY, SCHEDULE_TIME, SCHEDULE_INTERVAL_MINUTES
-from notify import send_message, build_alert_message
+from notify import send_message, build_alert_message, build_price_surge_message, build_price_changes_summary
 from scraper import get_game_window, scrape_item, verify_price_header
 
 logging.basicConfig(
@@ -82,6 +82,7 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
     alert_map = fetch_alert_map()
 
     ok, fail = 0, []
+    changed_items = []
     total = len(items)
 
     for idx, item in enumerate(items, 1):
@@ -108,12 +109,30 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
                     logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 模擬模式，不寫入")
                     ok += 1
                 else:
+                    prev_price = fetch_latest_price(item_id)
                     if record_price(item_id, price):
                         logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 已寫入 DB")
                         ok += 1
                     else:
                         logger.warning(f"▶ [{idx}/{total}] {name} → {price:,} → 寫入 DB 失敗")
                         fail.append(name)
+
+                    if prev_price is not None and prev_price > 0:
+                        change_pct = (price - prev_price) / prev_price * 100
+                        if price != prev_price:
+                            changed_items.append({
+                                "name": name,
+                                "prev_price": prev_price,
+                                "new_price": price,
+                                "change_pct": round(change_pct, 1),
+                            })
+                        if abs(change_pct) >= 50:
+                            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            msg = build_price_surge_message(name, prev_price, price, change_pct, now)
+                            if send_message(msg):
+                                logger.info(f"  已發送價格異動通知：{name} {change_pct:+.1f}%")
+                            else:
+                                logger.warning(f"  價格異動幅度達 {change_pct:+.1f}% 但通知發送失敗：{name}")
 
                 alert = alert_map.get(item_id)
                 if alert:
@@ -144,6 +163,14 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
         if fail:
             msg += f"\n❌ 失敗（{len(fail)} 筆）：{', '.join(fail)}"
         send_message(msg)
+
+        if changed_items:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            summary = build_price_changes_summary(changed_items, now)
+            if send_message(summary):
+                logger.info(f"  已發送價格異動摘要（{len(changed_items)} 筆）")
+            else:
+                logger.warning("  價格異動摘要發送失敗")
 
 
 def debug_ocr() -> None:
@@ -223,6 +250,8 @@ def main() -> None:
                         help="模擬模式：只印出價格，不寫入 DB")
     parser.add_argument("--fill-missing", action="store_true",
                         help="補漏模式：只抓今天還沒有價格記錄的商品")
+    parser.add_argument("--test-notify", action="store_true",
+                        help="發送一則測試訊息，確認通知功能是否正常")
     parser.add_argument("--debug-ocr", action="store_true",
                         help="截圖並印出所有 OCR 結果，用於診斷辨識問題")
     parser.add_argument("--debug-pos", nargs=2, type=int, metavar=("X", "Y"),
@@ -239,6 +268,14 @@ def main() -> None:
     fill_missing: bool = args.fill_missing
     equip_region = _parse_region(args.equip_region) if args.equip_region else None
     default_region = _parse_region(args.default_region) if args.default_region else None
+
+    if args.test_notify:
+        msg = "✅ Artale Market 通知測試訊息"
+        if send_message(msg):
+            logger.info("測試訊息發送成功")
+        else:
+            logger.error("測試訊息發送失敗，請檢查 NOTIFY_BOT_ID 或 TG 設定")
+        return
 
     if args.debug_ocr:
         debug_ocr()

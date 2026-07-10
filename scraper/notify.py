@@ -13,6 +13,32 @@ from config import API_BASE_URL, NOTIFY_BOT_ID, NOTIFY_TG_BOT_TOKEN, NOTIFY_TG_C
 logger = logging.getLogger(__name__)
 
 
+def build_price_changes_summary(changed_items: list[dict], now: str) -> str:
+    lines = [f"📊 今日價格異動摘要\n🕐 {now}\n"]
+    for item in changed_items:
+        pct = item["change_pct"]
+        icon = "📈" if pct > 0 else "📉"
+        lines.append(
+            f"{icon} {item['name']}\n"
+            f"   {item['prev_price']:,} → {item['new_price']:,}  ({pct:+.1f}%)"
+        )
+    lines.append(f"\n共 {len(changed_items)} 筆異動")
+    return "\n".join(lines)
+
+
+def build_price_surge_message(name: str, prev_price: int, new_price: int, change_pct: float, now: str) -> str:
+    direction = "📈 暴漲" if new_price > prev_price else "📉 暴跌"
+    return (
+        f"⚠️ 今日價格異動幅度過高 ⚠️\n"
+        f"{direction}\n"
+        f"🕐 時間：{now}\n"
+        f"📦 商品名稱：{name}\n"
+        f"💰 上次價格：{prev_price:,}\n"
+        f"💰 目前價格：{new_price:,}\n"
+        f"📊 漲跌幅：{change_pct:+.1f}%"
+    )
+
+
 def build_alert_message(name: str, price: int, threshold: float, now: str) -> str:
     return (
         f"🔥🔥🔥手刀進入拍賣撿寶🔥🔥🔥\n"

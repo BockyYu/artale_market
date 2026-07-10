@@ -123,6 +123,15 @@ func (h *PriceHandler) RecordPrice(c *gin.Context) {
 	respOK(c, record)
 }
 
+func (h *PriceHandler) GetLatest(c *gin.Context) {
+	record, err := h.svc.GetLatest(parseID(c))
+	if err != nil {
+		respNotFound(c, err)
+		return
+	}
+	respOK(c, record)
+}
+
 func (h *PriceHandler) GetHistory(c *gin.Context) {
 	records, err := h.svc.GetHistory(parseID(c))
 	if err != nil {

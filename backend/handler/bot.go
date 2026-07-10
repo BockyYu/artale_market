@@ -117,6 +117,14 @@ func (h *BotHandler) TestDiscord(c *gin.Context) {
 	respOK(c, gin.H{"message": "sent"})
 }
 
+func (h *BotHandler) TestBot(c *gin.Context) {
+	if err := h.svc.SendMessage(parseID(c), "✅ Artale Market 通知測試訊息"); err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, gin.H{"message": "sent"})
+}
+
 func (h *BotHandler) ToggleActive(c *gin.Context) {
 	var req struct {
 		IsActive bool `json:"is_active"`

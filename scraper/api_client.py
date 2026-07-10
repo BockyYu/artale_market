@@ -65,6 +65,20 @@ def fetch_alert_map() -> dict[int, dict]:
         return {}
 
 
+def fetch_latest_price(item_id: int) -> int | None:
+    """取得指定商品最近一筆價格記錄，若無資料則回傳 None。"""
+    try:
+        r = requests.get(f"{API_BASE_URL}/api/items/{item_id}/prices/latest", timeout=10)
+        if r.ok:
+            data = r.json()
+            price = data.get("price")
+            if price is not None:
+                return int(price)
+    except Exception:
+        pass
+    return None
+
+
 def record_price(item_id: int, price: int) -> bool:
     """將最低價格寫入後端。"""
     r = requests.post(
