@@ -230,11 +230,55 @@ func (svc *priceService) GetPriceHistories(itemID uint) ([]model.PriceHistory, e
 }
 
 func (svc *priceService) DeletePriceHistory(id uint) error {
-	return svc.historyRepo.Delete(id)
+	h, err := svc.historyRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+	if err := svc.historyRepo.Delete(id); err != nil {
+		return err
+	}
+	return svc.syncPriceRecord(h.ItemID, h.RecordedAt)
 }
 
 func (svc *priceService) TogglePriceHistoryHidden(id uint, isHidden bool) error {
-	return svc.historyRepo.ToggleHidden(id, isHidden)
+	h, err := svc.historyRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+	if err := svc.historyRepo.ToggleHidden(id, isHidden); err != nil {
+		return err
+	}
+	return svc.syncPriceRecord(h.ItemID, h.RecordedAt)
+}
+
+// syncPriceRecord 在 history 異動後，重新計算並同步當日 price_record。
+// 若當日已無可見 history，直接刪除 price_record（前後台不再顯示）。
+func (svc *priceService) syncPriceRecord(itemID uint, recordedAt time.Time) error {
+	loc := time.FixedZone("Asia/Taipei", 8*60*60)
+	date := recordedAt.In(loc).Format("2006-01-02")
+
+	remaining, err := svc.historyRepo.FindVisibleByItemAndDate(itemID, date)
+	if err != nil {
+		return err
+	}
+
+	if len(remaining) == 0 {
+		return svc.priceRepo.DeleteByItemAndDate(itemID, date)
+	}
+
+	// 取剩餘可見 history 的最低價
+	minPrice := remaining[0].Price
+	for _, h := range remaining[1:] {
+		if h.Price < minPrice {
+			minPrice = h.Price
+		}
+	}
+
+	record, err := svc.priceRepo.FindByItemAndDate(itemID, date)
+	if err != nil {
+		return nil // price_record 不存在，無需同步
+	}
+	return svc.priceRepo.UpdatePrice(record, minPrice)
 }
 
 func (svc *priceService) GetLatest(itemID uint) (*model.PriceRecord, error) {

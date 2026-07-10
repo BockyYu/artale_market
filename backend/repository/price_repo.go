@@ -14,6 +14,7 @@ type PriceRepository interface {
 	FindHistoryByItem(itemID uint, limit int) ([]model.PriceRecord, error)
 	FindLatestByItem(itemID uint) (*model.PriceRecord, error)
 	DeleteByItem(itemID uint) error
+	DeleteByItemAndDate(itemID uint, date string) error
 }
 
 type priceRepo struct {
@@ -67,4 +68,8 @@ func (r *priceRepo) FindLatestByItem(itemID uint) (*model.PriceRecord, error) {
 
 func (r *priceRepo) DeleteByItem(itemID uint) error {
 	return r.db.Where("item_id = ?", itemID).Delete(&model.PriceRecord{}).Error
+}
+
+func (r *priceRepo) DeleteByItemAndDate(itemID uint, date string) error {
+	return r.db.Where("item_id = ? AND recorded_date = ?", itemID, date).Delete(&model.PriceRecord{}).Error
 }
