@@ -7,6 +7,7 @@
 """
 
 import logging
+import platform
 import re
 import time
 
@@ -17,6 +18,9 @@ import pyautogui
 import pygetwindow as gw
 import pyperclip
 from PIL import Image
+
+_IS_MAC = platform.system() == "Darwin"
+_MOD_KEY = "command" if _IS_MAC else "ctrl"
 
 from config import (
     AFTER_SEARCH_DELAY,
@@ -30,6 +34,20 @@ logger = logging.getLogger(__name__)
 
 # OCR 引擎懶初始化
 _reader: easyocr.Reader | None = None
+
+# Retina / HiDPI 縮放比例快取（Mac 通常為 2.0，Windows 為 1.0）
+_scale_factor: float | None = None
+
+
+def _get_scale_factor(win) -> float:
+    """偵測螢幕實體像素與邏輯座標的縮放比例，結果快取。"""
+    global _scale_factor
+    if _scale_factor is not None:
+        return _scale_factor
+    with mss.MSS() as sct:
+        shot = sct.grab({"left": win.left, "top": win.top, "width": 100, "height": 100})
+    _scale_factor = shot.width / 100
+    return _scale_factor
 
 # 商品類型常數（對應後端 model.ItemType）
 _ITEM_TYPE_EQUIP = 6
@@ -65,7 +83,10 @@ def get_game_window():
     if win.isMinimized:
         win.restore()
         time.sleep(0.3)
-    win.activate()
+    try:
+        win.activate()
+    except Exception:
+        pass  # Mac 上部分情況 activate() 會拋出例外，忽略即可
     time.sleep(0.4)
     return win
 
@@ -113,11 +134,12 @@ def _find_search_box(win) -> tuple[int, int]:
     logger.info("  自動偵測搜尋輸入框位置...")
     img, _, _ = _capture_full(win)
     results = _get_reader().readtext(img)
+    scale = _get_scale_factor(win)
 
     for bbox, text, _ in results:
         if any(k in text.replace(" ", "") for k in ["請輸入", "道具名稱", "輸入道具"]):
-            cx = int((bbox[0][0] + bbox[2][0]) / 2)
-            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            cx = int((bbox[0][0] + bbox[2][0]) / 2 / scale)
+            cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
             _search_box_cache = (cx, cy)
             logger.info(f"  搜尋框偵測成功：center=({cx},{cy})")
             return _search_box_cache
@@ -130,11 +152,11 @@ def search_item(win, item_name: str) -> None:
     cx, cy = _find_search_box(win)
     pyautogui.click(win.left + cx, win.top + cy)
     time.sleep(0.3)
-    pyautogui.hotkey("ctrl", "a")
+    pyautogui.hotkey(_MOD_KEY, "a")
     time.sleep(0.1)
     pyperclip.copy(item_name)
     time.sleep(0.1)
-    pyautogui.hotkey("ctrl", "v")
+    pyautogui.hotkey(_MOD_KEY, "v")
     time.sleep(0.4)
     pyautogui.press("enter")
     logger.info(f"  搜尋送出: {item_name}")
@@ -159,12 +181,13 @@ def _find_price_header(win, item_type: int = 0) -> tuple[int, int, int, int, int
     logger.info("  自動偵測「每個價錢」欄位位置...")
     img, _, _ = _capture_full(win)
     results = _get_reader().readtext(img)
+    scale = _get_scale_factor(win)
 
     # 單一文字塊命中
     for bbox, text, _ in results:
         if "每個" in text.replace(" ", ""):
-            x1, x2 = int(bbox[0][0]), int(bbox[2][0])
-            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            x1, x2 = int(bbox[0][0] / scale), int(bbox[2][0] / scale)
+            cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
             cx = (x1 + x2) // 2
             pad = max(60, (x2 - x1) // 2)
             _price_header_cache[item_type] = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
@@ -308,11 +331,13 @@ def verify_price_header(win) -> None:
     img, _, _ = _capture_full(win)
     results = _get_reader().readtext(img)
 
+    scale = _get_scale_factor(win)
+
     # 偵測搜尋框
     for bbox, text, _ in results:
         if any(k in text.replace(" ", "") for k in ["請輸入", "道具名稱", "輸入道具"]):
-            cx = int((bbox[0][0] + bbox[2][0]) / 2)
-            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            cx = int((bbox[0][0] + bbox[2][0]) / 2 / scale)
+            cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
             _search_box_cache = (cx, cy)
             logger.info(f"  搜尋框：center=({cx},{cy})")
             break
@@ -323,8 +348,8 @@ def verify_price_header(win) -> None:
     # 偵測「每個價錢」欄位（共用同一份 OCR 結果，不需再次截圖）
     for bbox, text, _ in results:
         if "每個" in text.replace(" ", ""):
-            x1, x2 = int(bbox[0][0]), int(bbox[2][0])
-            cy = int((bbox[0][1] + bbox[2][1]) / 2)
+            x1, x2 = int(bbox[0][0] / scale), int(bbox[2][0] / scale)
+            cy = int((bbox[0][1] + bbox[2][1]) / 2 / scale)
             cx = (x1 + x2) // 2
             pad = max(60, (x2 - x1) // 2)
             _price_header_cache[_UNIVERSAL_CACHE_KEY] = (cx, cy, max(0, x1 - pad), x2 + pad, cy + 20)
