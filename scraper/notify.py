@@ -1,16 +1,35 @@
 """
 通知發送模組。
 
-優先使用後端 API（設定 NOTIFY_BOT_ID），不需要 TG 憑證。
+透過後端 API 取得啟用中的機器人清單，再由後端代發通知。
 備用：直接發 Telegram 或 LINE（設定對應 token）。
 """
 
 import logging
 import requests
 
-from config import API_BASE_URL, NOTIFY_BOT_ID, NOTIFY_TG_BOT_TOKEN, NOTIFY_TG_CHAT_ID, NOTIFY_LINE_TOKEN
+from config import API_BASE_URL, NOTIFY_TG_BOT_TOKEN, NOTIFY_TG_CHAT_ID, NOTIFY_LINE_TOKEN
 
 logger = logging.getLogger(__name__)
+
+# 啟動後快取一次，避免每次發訊息都呼叫 API
+_active_bot_ids: list[int] | None = None
+
+
+def _get_active_bot_ids() -> list[int]:
+    global _active_bot_ids
+    if _active_bot_ids is not None:
+        return _active_bot_ids
+    try:
+        resp = requests.get(f"{API_BASE_URL}/api/bot/active", timeout=10)
+        if resp.ok:
+            bots = resp.json().get("data", [])
+            _active_bot_ids = [b["id"] for b in bots if b.get("id")]
+            return _active_bot_ids
+    except Exception as e:
+        logger.warning(f"[Notify] 無法取得 bot 清單：{e}")
+    _active_bot_ids = []
+    return _active_bot_ids
 
 
 def build_price_changes_summary(changed_items: list[dict], now: str) -> str:
@@ -51,24 +70,28 @@ def build_alert_message(name: str, price: int, threshold: float, now: str) -> st
 
 
 def send_message(text: str, bot_id: int | None = None) -> bool:
-    """發送訊息，回傳是否成功。優先走後端 API，否則直接發平台。"""
-    effective_bot_id = bot_id or NOTIFY_BOT_ID
-    if effective_bot_id:
-        return _send_via_backend(effective_bot_id, text)
+    """發送訊息，回傳是否成功。"""
+    if bot_id:
+        return _send_via_backend(bot_id, text)
+
+    # 從後端取得啟用中的 bot 清單，逐一發送
+    bot_ids = _get_active_bot_ids()
+    if bot_ids:
+        sent = False
+        for bid in bot_ids:
+            if _send_via_backend(bid, text):
+                sent = True
+        return sent
 
     # 備用：直接發平台
-    sent = False
     if NOTIFY_TG_BOT_TOKEN and NOTIFY_TG_CHAT_ID:
-        if _send_tg(NOTIFY_TG_BOT_TOKEN, NOTIFY_TG_CHAT_ID, text):
-            sent = True
-    else:
-        logger.warning("[Notify] NOTIFY_BOT_ID 和 NOTIFY_TG_BOT_TOKEN 均未設定，無法發送通知")
+        return _send_tg(NOTIFY_TG_BOT_TOKEN, NOTIFY_TG_CHAT_ID, text)
 
     if NOTIFY_LINE_TOKEN:
-        if _send_line(NOTIFY_LINE_TOKEN, text):
-            sent = True
+        return _send_line(NOTIFY_LINE_TOKEN, text)
 
-    return sent
+    logger.warning("[Notify] 後端無啟用中的 bot，且未設定備用 TG / LINE token")
+    return False
 
 
 def _send_via_backend(bot_id: int, text: str) -> bool:

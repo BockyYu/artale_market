@@ -47,6 +47,18 @@ def fetch_unrecorded_items() -> list[dict]:
     ]
 
 
+def fetch_active_bots() -> list[dict]:
+    """取得後端啟用中的通知機器人清單，回傳 [{id, name, platform}]。"""
+    try:
+        r = requests.get(f"{API_BASE_URL}/api/bot/active", timeout=10)
+        if r.ok:
+            data = r.json()
+            return data.get("data", [])
+    except Exception:
+        pass
+    return []
+
+
 def fetch_alert_map() -> dict[int, dict]:
     """取得啟用中的價格提醒，回傳 {item_id: {threshold_price, bot_id}}。"""
     try:

@@ -80,6 +80,25 @@ func (h *BotHandler) SendMessage(c *gin.Context) {
 	respOK(c, gin.H{"message": "sent"})
 }
 
+// ListActiveBots 公開端點，回傳啟用中的 bot 清單（不含 token）
+func (h *BotHandler) ListActiveBots(c *gin.Context) {
+	bots, err := h.svc.ListActive()
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	type botInfo struct {
+		ID       uint   `json:"id"`
+		Name     string `json:"name"`
+		Platform string `json:"platform"`
+	}
+	result := make([]botInfo, 0, len(bots))
+	for _, b := range bots {
+		result = append(result, botInfo{ID: b.ID, Name: b.Name, Platform: b.Platform})
+	}
+	respOK(c, gin.H{"data": result})
+}
+
 // PublicNotify 供 bot.py 呼叫，不需要 JWT，傳入 bot_id 和訊息
 func (h *BotHandler) PublicNotify(c *gin.Context) {
 	var req struct {

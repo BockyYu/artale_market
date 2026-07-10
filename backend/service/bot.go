@@ -7,6 +7,7 @@ import (
 
 type BotService interface {
 	List() ([]model.NotifyBot, error)
+	ListActive() ([]model.NotifyBot, error)
 	Create(name, platform, token, chatID string) (*model.NotifyBot, error)
 	Update(id uint, name, platform, token, chatID string) error
 	Delete(id uint) error
@@ -24,6 +25,10 @@ func NewBotService(repo repository.BotRepository) BotService {
 
 func (s *botService) List() ([]model.NotifyBot, error) {
 	return s.repo.List()
+}
+
+func (s *botService) ListActive() ([]model.NotifyBot, error) {
+	return s.repo.ListActive()
 }
 
 func (s *botService) Create(name, platform, token, chatID string) (*model.NotifyBot, error) {

@@ -8,6 +8,7 @@ import (
 
 type BotRepository interface {
 	List() ([]model.NotifyBot, error)
+	ListActive() ([]model.NotifyBot, error)
 	FindByID(id uint) (*model.NotifyBot, error)
 	Create(bot *model.NotifyBot) error
 	Update(id uint, fields map[string]any) error
@@ -26,6 +27,12 @@ func NewBotRepository(db *gorm.DB) BotRepository {
 func (r *botRepository) List() ([]model.NotifyBot, error) {
 	var bots []model.NotifyBot
 	err := r.db.Order("created_at desc").Find(&bots).Error
+	return bots, err
+}
+
+func (r *botRepository) ListActive() ([]model.NotifyBot, error) {
+	var bots []model.NotifyBot
+	err := r.db.Where("is_active = true").Order("created_at desc").Find(&bots).Error
 	return bots, err
 }
 

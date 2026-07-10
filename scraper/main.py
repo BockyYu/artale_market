@@ -270,11 +270,16 @@ def main() -> None:
     default_region = _parse_region(args.default_region) if args.default_region else None
 
     if args.test_notify:
-        msg = "✅ Artale Market 通知測試訊息"
-        if send_message(msg):
+        from notify import _get_active_bot_ids
+        bot_ids = _get_active_bot_ids()
+        if not bot_ids:
+            logger.error("後端無啟用中的通知 bot，請至後台新增並啟用")
+            return
+        logger.info(f"找到 {len(bot_ids)} 個啟用中的 bot：{bot_ids}")
+        if send_message("✅ Artale Market 通知測試訊息"):
             logger.info("測試訊息發送成功")
         else:
-            logger.error("測試訊息發送失敗，請檢查 NOTIFY_BOT_ID 或 TG 設定")
+            logger.error("測試訊息發送失敗")
         return
 
     if args.debug_ocr:
