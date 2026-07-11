@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -8,6 +10,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+// Context keys for propagating auth claims into the standard context.
+// Huma handlers receive context.Context (not *gin.Context), so claims
+// must be set here to be readable in Huma handler functions.
+type CtxAdminID struct{}
+type CtxAdminUsername struct{}
+type CtxAdminRole struct{}
+type CtxMemberID struct{}
+type CtxMemberUsername struct{}
 
 func MemberJWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -32,12 +43,16 @@ func MemberJWTAuth() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not a member token"})
 			return
 		}
-		c.Set("member_id", claims["sub"])
-		c.Set("member_username", claims["username"])
+		memberID := fmt.Sprintf("%v", claims["sub"])
+		memberUsername := fmt.Sprintf("%v", claims["username"])
+		c.Set("member_id", memberID)
+		c.Set("member_username", memberUsername)
+		newCtx := context.WithValue(c.Request.Context(), CtxMemberID{}, memberID)
+		newCtx = context.WithValue(newCtx, CtxMemberUsername{}, memberUsername)
+		c.Request = c.Request.WithContext(newCtx)
 		c.Next()
 	}
 }
-
 
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -61,9 +76,16 @@ func JWTAuth() gin.HandlerFunc {
 		}
 
 		claims, _ := token.Claims.(jwt.MapClaims)
-		c.Set("admin_id", claims["sub"])
-		c.Set("admin_username", claims["username"])
-		c.Set("admin_role", claims["role"])
+		adminID := fmt.Sprintf("%v", claims["sub"])
+		adminUsername := fmt.Sprintf("%v", claims["username"])
+		adminRole := fmt.Sprintf("%v", claims["role"])
+		c.Set("admin_id", adminID)
+		c.Set("admin_username", adminUsername)
+		c.Set("admin_role", adminRole)
+		newCtx := context.WithValue(c.Request.Context(), CtxAdminID{}, adminID)
+		newCtx = context.WithValue(newCtx, CtxAdminUsername{}, adminUsername)
+		newCtx = context.WithValue(newCtx, CtxAdminRole{}, adminRole)
+		c.Request = c.Request.WithContext(newCtx)
 		c.Next()
 	}
 }

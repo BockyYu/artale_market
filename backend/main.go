@@ -56,6 +56,7 @@ func main() {
 	deps := &router.Deps{
 		Item:       handler.NewItemHandler(itemSvc, queryRepo, categoryRepo),
 		Price:      handler.NewPriceHandler(priceSvc, querySvc),
+		PriceHuma:  handler.NewPriceHumaHandler(priceSvc, querySvc, enforcer),
 		Query:      handler.NewQueryHandler(querySvc),
 		Admin:      handler.NewAdminHandler(adminSvc),
 		Member:     handler.NewMemberHandler(memberSvc),

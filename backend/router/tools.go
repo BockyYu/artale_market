@@ -3,11 +3,9 @@ package router
 import "github.com/gin-gonic/gin"
 
 // registerTools 自動／工具專用路由（無需 token）
+// 注意：price 路由已遷移至 Huma v2（router/price_huma.go），此處不再重複註冊。
 func registerTools(g *gin.RouterGroup, d *Deps) {
 	g.GET("/items/tracked", d.Item.GetTracked)
-	g.POST("/items/:id/prices", d.Price.RecordPrice)
-	g.GET("/items/:id/prices/latest", d.Price.GetLatest)
-	g.POST("/items/prices/latest-batch", d.Price.GetLatestBatch)
 	g.GET("/items", d.Item.GetAll)
 	g.POST("/items", d.Item.Create)
 	g.PUT("/items/:id", d.Item.Update)

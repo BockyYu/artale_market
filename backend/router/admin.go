@@ -30,10 +30,8 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.PUT("/members/:id/status", d.Member.UpdateStatus)
 		auth.DELETE("/members/:id", d.Member.Delete)
 
-		// 後台新增價格（需要 price:write 權限）
-		auth.POST("/items/:id/prices", middleware.CasbinAuth(d.Enforcer, "price", "write"), d.Price.RecordPrice)
-
 		// 道具列表與查詢優先度管理
+		// 注意：price 路由已遷移至 Huma v2（router/price_huma.go），此處不再重複註冊。
 		auth.GET("/export/excel", d.Item.ExportExcel)
 		auth.POST("/export/discord", d.Item.SendExcelToDiscord)
 		auth.GET("/items/categories", d.Item.GetCategories)
@@ -42,10 +40,6 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.PUT("/items/:id", d.Item.Update)
 		auth.PATCH("/items/:id/track", d.Item.SetTracked)
 		auth.PATCH("/items/:id/hidden", d.Item.SetHidden)
-		auth.GET("/items/:id/prices", d.Price.AdminGetHistory)
-		auth.GET("/items/:id/histories", d.Price.AdminGetPriceHistories)
-		auth.DELETE("/histories/:id", d.Price.DeletePriceHistory)
-		auth.PATCH("/histories/:id/hidden", d.Price.TogglePriceHistoryHidden)
 
 		// 價格提醒
 		auth.GET("/alerts", d.Alert.List)
