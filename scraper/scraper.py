@@ -515,6 +515,13 @@ def enter_auction(win, btn_pos: tuple[int, int] | None = None) -> bool:
 
     reset_auction_caches()
 
+    # 座標已校準時跳過全視窗 OCR 驗證（省去 10~15 秒），直接信任點擊結果
+    sx, sy = SEARCH_BOX_POS
+    px, py = PRICE_SORT_POS
+    if (sx != 0 or sy != 0) and (px != 0 or py != 0):
+        logger.info("  座標已校準，略過 OCR 驗證，視為成功進入拍賣畫面")
+        return True
+
     if is_in_auction_screen(win):
         logger.info("  成功進入拍賣畫面")
         return True
