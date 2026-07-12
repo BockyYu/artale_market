@@ -213,6 +213,9 @@ func (svc *priceService) Record(itemID uint, price float64, date string, source 
 			return nil, err
 		}
 	} else {
+		if existing.Price == price {
+			return existing, nil // 價格與今日紀錄相同，略過更新
+		}
 		if err := svc.priceRepo.UpdatePrice(existing, price); err != nil {
 			return nil, err
 		}
