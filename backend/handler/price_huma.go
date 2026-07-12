@@ -67,11 +67,23 @@ type HumaScrollSearchInput struct {
 }
 
 type HumaSkillBookSearchInput struct {
-	Body dto.SkillBookSearchReq
+	Body struct {
+		Date     string   `json:"date,omitempty"     doc:"查詢日期，格式 YYYY-MM-DD，省略時預設台北今天"                                                                                           format:"date"`
+		Category []string `json:"category,omitempty" doc:"職業篩選，省略或空陣列為全部職業。可填：warrior / bowman / magician / thief / pirate 等職業分類名稱"`
+		SortBy   string   `json:"sort_by,omitempty"  doc:"排序方式，省略時預設 price_desc。可填：price_desc（價格高→低）/ price_asc（價格低→高）/ change_desc（漲幅高→低）/ change_asc（跌幅高→低）"`
+		Page     int      `json:"page,omitempty"     doc:"頁碼，從 1 開始，省略時預設第 1 頁"                                                                                                    minimum:"1"`
+		PageSize int      `json:"page_size"          doc:"每頁筆數，必填"                                                                                                                   minimum:"1" maximum:"200"`
+	}
 }
 
 type HumaEquipSearchInput struct {
-	Body dto.EquipSearchReq
+	Body struct {
+		Date     string   `json:"date,omitempty"     doc:"查詢日期，格式 YYYY-MM-DD，省略時預設台北今天"                                                                                  format:"date"`
+		Category []string `json:"category,omitempty" doc:"裝備分類篩選，省略或空陣列為全部。可填：weapon / armor / accessory 等分類名稱"`
+		SortBy   string   `json:"sort_by,omitempty"  doc:"排序方式，省略時預設 price_desc。可填：price_desc（價格高→低）/ price_asc（價格低→高）/ change_desc（漲幅高→低）/ change_asc（跌幅高→低）"`
+		Page     int      `json:"page,omitempty"     doc:"頁碼，從 1 開始，省略時預設第 1 頁"                                                                                            minimum:"1"`
+		PageSize int      `json:"page_size"          doc:"每頁筆數，必填"                                                                                                              minimum:"1" maximum:"200"`
+	}
 }
 
 type HumaPagedSummaryOutput struct {

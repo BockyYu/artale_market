@@ -14,8 +14,8 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 		OperationID: "record-price",
 		Method:      "POST",
 		Path:        "/items/{id}/prices",
-		Summary:     "Record item price",
-		Description: "Scraper or admin writes the latest auction price for an item.",
+		Summary:     "寫入道具價格",
+		Description: "由爬蟲或管理員寫入指定道具的最新拍賣價格。若未傳入日期則預設為台北今天。",
 		Tags:        []string{"prices"},
 	}, h.RecordPrice)
 
@@ -23,8 +23,8 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 		OperationID: "get-latest-price",
 		Method:      "GET",
 		Path:        "/items/{id}/prices/latest",
-		Summary:     "Get latest price for an item",
-		Description: "Returns the most recent price record for the specified item. Returns 404 if no price has been recorded yet.",
+		Summary:     "取得道具最新價格",
+		Description: "回傳指定道具最新一筆價格紀錄。若該道具尚無任何價格資料則回傳 404。",
 		Tags:        []string{"prices"},
 	}, h.GetLatest)
 
@@ -32,8 +32,8 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 		OperationID: "get-latest-prices-batch",
 		Method:      "POST",
 		Path:        "/items/prices/latest-batch",
-		Summary:     "Batch get latest prices for multiple items",
-		Description: "Returns a map of item_id → latest price. Item IDs with no record are omitted.",
+		Summary:     "批次取得多個道具的最新價格",
+		Description: "傳入道具 ID 陣列，回傳 item_id → 最新價格 的對應表。沒有價格紀錄的道具不會出現在結果中。",
 		Tags:        []string{"prices"},
 	}, h.GetLatestBatch)
 
@@ -41,9 +41,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(memberApi, huma.Operation{
 		OperationID: "member-search-scrolls",
 		Method:      "POST",
-		Path:        "/scrolls/search",
-		Summary:     "Search scroll prices with pagination",
-		Description: "Query scroll item prices with filtering by category and percentage, sorted by the specified field. Returns a paginated list of price summaries. Requires member authentication.",
+		Path:        "/v1/member/scrolls/search",
+		Summary:     "查詢卷軸價格（分頁）",
+		Description: "依分類與成功率篩選卷軸價格，支援多種排序方式，回傳分頁摘要列表。需要會員 JWT 認證。",
 		Tags:        []string{"prices", "member"},
 		Security:    []map[string][]string{{"memberBearerAuth": {}}},
 	}, h.GetScrollSummary)
@@ -51,9 +51,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(memberApi, huma.Operation{
 		OperationID: "member-search-skillbooks",
 		Method:      "POST",
-		Path:        "/skillbooks/search",
-		Summary:     "Search skillbook prices with pagination",
-		Description: "Query skill book item prices with filtering by category, sorted by the specified field. Defaults to price_desc sort order. Returns a paginated list of price summaries. Requires member authentication.",
+		Path:        "/v1/member/skillbooks/search",
+		Summary:     "查詢技能書價格（分頁）",
+		Description: "依職業分類篩選技能書價格，支援多種排序方式，預設以價格高→低排序，回傳分頁摘要列表。需要會員 JWT 認證。",
 		Tags:        []string{"prices", "member"},
 		Security:    []map[string][]string{{"memberBearerAuth": {}}},
 	}, h.GetSkillBookSummary)
@@ -61,9 +61,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(memberApi, huma.Operation{
 		OperationID: "member-search-equips",
 		Method:      "POST",
-		Path:        "/equips/search",
-		Summary:     "Search equipment prices with pagination",
-		Description: "Query equipment item prices with filtering by category, sorted by the specified field. Defaults to price_desc sort order. Returns a paginated list of price summaries. Requires member authentication.",
+		Path:        "/v1/member/equips/search",
+		Summary:     "查詢裝備價格（分頁）",
+		Description: "依裝備分類篩選裝備價格，支援多種排序方式，預設以價格高→低排序，回傳分頁摘要列表。需要會員 JWT 認證。",
 		Tags:        []string{"prices", "member"},
 		Security:    []map[string][]string{{"memberBearerAuth": {}}},
 	}, h.GetEquipSummary)
@@ -72,9 +72,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(adminApi, huma.Operation{
 		OperationID: "admin-record-price",
 		Method:      "POST",
-		Path:        "/items/{id}/prices",
-		Summary:     "Admin: record item price (requires price:write permission)",
-		Description: "Manually record the latest auction price for an item. Requires the caller to have `price:write` Casbin permission (superadmin is exempt). The source is always recorded as `admin`.",
+		Path:        "/v1/admin/items/{id}/prices",
+		Summary:     "（管理員）手動寫入道具價格",
+		Description: "手動寫入指定道具的拍賣價格，來源固定記錄為 admin。需要 Casbin price:write 權限（superadmin 免檢查）。",
 		Tags:        []string{"prices", "admin"},
 		Security:    []map[string][]string{{"adminBearerAuth": {}}},
 	}, h.AdminRecordPrice)
@@ -82,9 +82,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(adminApi, huma.Operation{
 		OperationID: "admin-get-price-history",
 		Method:      "GET",
-		Path:        "/items/{id}/prices",
-		Summary:     "Admin: get all price records for an item",
-		Description: "Returns every price record (one per date) stored for the specified item, ordered by date descending. Useful for reviewing the price time series.",
+		Path:        "/v1/admin/items/{id}/prices",
+		Summary:     "（管理員）取得道具所有價格紀錄",
+		Description: "回傳指定道具全部的每日價格紀錄，依日期由新到舊排序，可用於檢視價格走勢。",
 		Tags:        []string{"prices", "admin"},
 		Security:    []map[string][]string{{"adminBearerAuth": {}}},
 	}, h.AdminGetHistory)
@@ -92,9 +92,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(adminApi, huma.Operation{
 		OperationID: "admin-get-price-histories",
 		Method:      "GET",
-		Path:        "/items/{id}/histories",
-		Summary:     "Admin: get full audit history for an item",
-		Description: "Returns the full audit log of every write operation made to an item's price, including hidden entries. Each entry shows who recorded the price, from what source, and whether it has been hidden.",
+		Path:        "/v1/admin/items/{id}/histories",
+		Summary:     "（管理員）取得道具完整異動記錄",
+		Description: "回傳指定道具所有價格寫入操作的完整稽核記錄，包含已隱藏的項目。每筆記錄包含寫入者、來源、是否隱藏等資訊。",
 		Tags:        []string{"prices", "admin"},
 		Security:    []map[string][]string{{"adminBearerAuth": {}}},
 	}, h.AdminGetPriceHistories)
@@ -102,9 +102,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(adminApi, huma.Operation{
 		OperationID: "admin-delete-history",
 		Method:      "DELETE",
-		Path:        "/histories/{id}",
-		Summary:     "Admin: permanently delete a price history entry",
-		Description: "Permanently removes a single price history entry by its ID. This action is irreversible. Use the hidden flag instead if you want to soft-delete.",
+		Path:        "/v1/admin/histories/{id}",
+		Summary:     "（管理員）永久刪除價格異動記錄",
+		Description: "永久刪除指定 ID 的價格異動記錄，此操作不可逆。若只是不想顯示，建議改用隱藏旗標（PATCH hidden）。",
 		Tags:        []string{"prices", "admin"},
 		Security:    []map[string][]string{{"adminBearerAuth": {}}},
 	}, h.DeletePriceHistory)
@@ -112,9 +112,9 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 	huma.Register(adminApi, huma.Operation{
 		OperationID: "admin-toggle-history-hidden",
 		Method:      "PATCH",
-		Path:        "/histories/{id}/hidden",
-		Summary:     "Admin: toggle the hidden flag on a price history entry",
-		Description: "Sets or clears the `is_hidden` flag on a price history entry. Hidden entries are excluded from public-facing price queries but are retained in the audit log.",
+		Path:        "/v1/admin/histories/{id}/hidden",
+		Summary:     "（管理員）切換價格異動記錄的隱藏狀態",
+		Description: "設定或取消指定價格異動記錄的 is_hidden 旗標。隱藏的記錄不會出現在前台查詢結果，但仍保留於稽核記錄中。",
 		Tags:        []string{"prices", "admin"},
 		Security:    []map[string][]string{{"adminBearerAuth": {}}},
 	}, h.TogglePriceHistoryHidden)

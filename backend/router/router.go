@@ -87,14 +87,18 @@ func Setup(deps *Deps) *gin.Engine {
 	publicApi := humagin.NewWithGroup(r, publicHumaGroup, humaConfig)
 
 	// 後續 API 共用同一份 OpenAPI spec（不重複開 spec 端點）
+	// 三個 group 都掛在 /api 基底，middleware 各自加；
+	// operation path 在 price_huma.go 裡帶完整前綴（/v1/member/... / /v1/admin/...），
+	// 確保 OpenAPI spec 路徑與實際 gin 路由一致。
 	humaConfig.OpenAPIPath = ""
-	memberHumaGroup := r.Group("/api/v1/member")
+
+	memberHumaGroup := r.Group("/api")
 	if os.Getenv("APP_MODE") == "prod" {
 		memberHumaGroup.Use(middleware.MemberJWTAuth())
 	}
 	memberApi := humagin.NewWithGroup(r, memberHumaGroup, humaConfig)
 
-	adminHumaGroup := r.Group("/api/v1/admin")
+	adminHumaGroup := r.Group("/api")
 	adminHumaGroup.Use(middleware.JWTAuth())
 	adminApi := humagin.NewWithGroup(r, adminHumaGroup, humaConfig)
 
