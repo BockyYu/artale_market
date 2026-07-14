@@ -24,7 +24,7 @@ import schedule
 from api_client import fetch_latest_prices_batch
 from config import API_BASE_URL, BETWEEN_ITEMS_DELAY, SCHEDULE_INTERVAL_MINUTES
 from notify import send_message, build_alert_message
-from scraper import get_game_window, scrape_item, verify_price_header, is_in_auction_screen, enter_auction, reenter_auction, exit_auction
+from scraper import get_game_window, scrape_item, verify_price_header, is_in_auction_screen, enter_auction, reenter_auction, exit_auction, preload_ocr
 
 logging.basicConfig(
     level=logging.INFO,
@@ -191,10 +191,71 @@ class AlertBot:
     # 公開：啟動
     # ------------------------------------------------------------------
 
+    def _ensure_positions(self) -> None:
+        """
+        檢查所有必要的螢幕座標是否已設定。
+        若有缺漏，引導使用者互動校準並寫入 .env，同時更新 in-memory 設定。
+        """
+        import config as _cfg
+        import scraper as _scr
+
+        def _sync(key: str, val: tuple[int, int]) -> None:
+            setattr(_cfg, key, val)
+            if hasattr(_scr, key):
+                setattr(_scr, key, val)
+
+        # ── 1. 拍賣按鈕（進場前設定，不需先開拍賣）────────────────────
+        if _cfg.AUCTION_BTN_POS == (0, 0):
+            print("\n" + "=" * 55)
+            print("⚙️  首次設定：拍賣按鈕位置（AUCTION_BTN_POS）")
+            print("=" * 55)
+            val = _calibrate_and_save(
+                "請在遊戲中回到拍賣場外",
+                "請將滑鼠移到拍賣按鈕上",
+                "AUCTION_BTN_POS",
+                need_game_open=False,
+            )
+            _sync("AUCTION_BTN_POS", val)
+            self._auction_btn = val
+
+        # ── 2. 拍賣場內位置（需要先進拍賣）──────────────────────────────
+        in_auction_items = [
+            ("SEARCH_BOX_POS",  "將滑鼠移到搜尋輸入框上"),
+            ("PRICE_SORT_POS",  "搜尋任一道具讓列表出現，再將滑鼠移到「每個價錢」欄位標題上"),
+            ("AUCTION_EXIT_POS","將滑鼠移到離開拍賣的按鈕上"),
+        ]
+        missing = [(k, p) for k, p in in_auction_items if getattr(_cfg, k) == (0, 0)]
+
+        if missing:
+            print("\n" + "=" * 55)
+            print("⚙️  首次設定：拍賣場內位置")
+            print("需要校準以下座標：")
+            for k, _ in missing:
+                print(f"   • {k}")
+            print("=" * 55)
+            print("請先【手動開啟拍賣畫面】，確認搜尋框可見後按 Enter 繼續...")
+            input()
+
+            for env_key, prompt_move in missing:
+                print(f"\n── 設定 {env_key} ──")
+                val = _calibrate_and_save(
+                    "",          # prompt_before 不再使用（拍賣已開啟）
+                    prompt_move,
+                    env_key,
+                    need_game_open=False,
+                )
+                _sync(env_key, val)
+
+        logger.info("[Bot] 所有座標已就緒")
+
     def start(self) -> None:
         """立即執行一次，之後每 SCHEDULE_INTERVAL_MINUTES 分鐘自動觸發。"""
         logger.info(f"[Bot] 啟動，間隔：{SCHEDULE_INTERVAL_MINUTES} 分鐘")
         logger.info("[Bot] 按 Ctrl+C 停止")
+        self._ensure_positions()
+        logger.info("[Bot] 預載 OCR 引擎...")
+        preload_ocr()
+        logger.info("[Bot] OCR 就緒，開始執行")
 
         self._run_once()
 
@@ -228,7 +289,7 @@ def _update_env(key: str, value: str) -> None:
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _calibrate_and_save(prompt_before: str, prompt_move: str, env_key: str, need_game_open: bool = True) -> None:
+def _calibrate_and_save(prompt_before: str, prompt_move: str, env_key: str, need_game_open: bool = True) -> tuple[int, int]:
     import threading, pyautogui as _pag, time as _time
     from scraper import get_game_window
     if need_game_open:
@@ -251,6 +312,7 @@ def _calibrate_and_save(prompt_before: str, prompt_move: str, env_key: str, need
     print(f"\n已記錄座標：({bx}, {by})")
     _update_env(env_key, f"{bx},{by}")
     logger.info(f"已將 {env_key}={bx},{by} 寫入 .env")
+    return (bx, by)
 
 
 if __name__ == "__main__":
