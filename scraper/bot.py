@@ -109,7 +109,7 @@ class AlertBot:
             self._win = None
             return
 
-        ok, fail = 0, []
+        ok, fail, fail_items = 0, [], []
         consecutive_fails = 0 # 連續失敗
         total = len(items)
 
@@ -145,6 +145,7 @@ class AlertBot:
                     consecutive_fails += 1
                     logger.warning(f"▶ [{idx}/{total}] {name} → 找不到價格，跳過")
                     fail.append(name)
+                    fail_items.append(item)
                     if consecutive_fails >= 2:
                         logger.warning("[Bot] 連續 2 筆找不到價格，檢查是否已離開拍賣畫面...")
                         if not is_in_auction_screen(self._win):
@@ -164,6 +165,7 @@ class AlertBot:
                     )
                     if verified is None:
                         fail.append(name)
+                        fail_items.append(item)
                     else:
                         price = verified
 
@@ -177,6 +179,7 @@ class AlertBot:
                         else:
                             logger.warning(f"▶ [{idx}/{total}] {name} → {price:,} → 寫入 DB 失敗")
                             fail.append(name)
+                            fail_items.append(item)
 
                         if threshold_price > 0 and price <= threshold_price:
                             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -189,11 +192,53 @@ class AlertBot:
             except Exception as e:
                 logger.error(f"▶ [{idx}/{total}] {name} → 錯誤：{e}")
                 fail.append(name)
+                fail_items.append(item)
 
             time.sleep(BETWEEN_ITEMS_DELAY)
 
         else:
             # for loop 正常結束（未被 break）才離開拍賣畫面
+            if fail_items:
+                logger.info(f"[Bot] 重新查詢 {len(fail_items)} 筆失敗道具...")
+                retry_fail = []
+                for item in fail_items:
+                    name            = item.get("item_name", "")
+                    item_id         = item.get("item_id")
+                    item_type       = item.get("item_type", 1)
+                    search_mode     = item.get("search_mode", 1)
+                    english_name    = item.get("english_name", "")
+                    threshold_price = item.get("threshold_price", 0)
+                    bot_id          = item.get("bot_id")
+                    search_name     = english_name if search_mode == 2 and english_name else name
+                    try:
+                        price = scrape_item(self._win, search_name, item_type,
+                                           equip_region=self._equip_region,
+                                           default_region=self._default_region)
+                        if price is None:
+                            logger.warning(f"  [重試] {name} → 仍找不到價格")
+                            retry_fail.append(name)
+                        else:
+                            latest_price = latest_price_map.get(item_id)
+                            if latest_price is not None and latest_price == price:
+                                logger.info(f"  [重試] {name} → {price:,} → 與 DB 相同，略過寫入")
+                                ok += 1
+                            elif self._record_price(item_id, price):
+                                logger.info(f"  [重試] {name} → {price:,} → 已寫入 DB")
+                                ok += 1
+                                if threshold_price > 0 and price <= threshold_price:
+                                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    msg = build_alert_message(name, price, threshold_price, now)
+                                    if send_message(msg, bot_id=bot_id):
+                                        logger.info(f"  已發送價格通知：{name} → {price:,}")
+                            else:
+                                logger.warning(f"  [重試] {name} → 寫入 DB 失敗")
+                                retry_fail.append(name)
+                    except Exception as e:
+                        logger.error(f"  [重試] {name} → 錯誤：{e}")
+                        retry_fail.append(name)
+                    time.sleep(BETWEEN_ITEMS_DELAY)
+                fail = retry_fail
+
             exit_auction(self._win)
         logger.info(f"[Bot] 完成：{ok}/{len(items)} 筆成功")
         if fail:

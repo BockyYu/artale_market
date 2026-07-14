@@ -17,7 +17,7 @@ import mss
 import numpy as np
 import pyautogui
 import pyperclip
-from PIL import Image
+from PIL import Image, ImageOps
 
 _IS_MAC = platform.system() == "Darwin"
 _MOD_KEY = "command" if _IS_MAC else "ctrl"
@@ -140,8 +140,8 @@ _UNIVERSAL_CACHE_KEY = -1
 def _get_reader() -> easyocr.Reader:
     global _reader
     if _reader is None:
-        logger.info("初始化 OCR 引擎（繁體中文 + 英文）...")
-        _reader = easyocr.Reader(["ch_tra", "en"], gpu=False)
+        logger.info("初始化 OCR 引擎...")
+        _reader = easyocr.Reader(["en"], gpu=False)
         logger.info("OCR 引擎就緒")
     return _reader
 
@@ -386,8 +386,11 @@ def read_price_from_region(win, x1: int, y1: int, x2: int, y2: int) -> int | Non
             "height": y2 - y1,
         }
         shot = sct.grab(region)
-    img = np.array(Image.frombytes("RGB", shot.size, shot.rgb))
-    results = _get_reader().readtext(img)
+    # 灰階 + 自動對比，減少 OCR 雜訊並加快辨識
+    pil = Image.frombytes("RGB", shot.size, shot.rgb).convert("L")
+    pil = ImageOps.autocontrast(pil)
+    img = np.array(pil)
+    results = _get_reader().readtext(img, allowlist="0123456789,")
 
     row_map: dict[int, list[tuple[int, int, str]]] = {}
     for bbox, text, _conf in results:
@@ -631,13 +634,29 @@ def scrape_item(
     equip_region: tuple[int, int, int, int] | None = None,
     default_region: tuple[int, int, int, int] | None = None,
 ) -> int | None:
-    """搜尋單一商品並回傳最低單價。"""
+    """
+    在拍賣場搜尋指定商品，依「每個價錢」排序後，OCR 讀取並回傳最低單價。
+    找不到任何價格時回傳 None。
+
+    流程：
+      1. 在搜尋框輸入商品名稱並送出，等待列表載入
+      2. 找到「每個價錢」欄位標題（OCR 偵測或快取），點擊令其由低到高排序
+      3. 截取價格欄位區域，OCR 解析所有數字，取最上方（最低）那筆
+
+    item_type 決定截圖區域：
+      - 裝備（_ITEM_TYPE_EQUIP）→ equip_region 或預設 PRICE_REGION_EQUIP
+      - 其他（卷軸、技能書等）→ default_region 或預設 PRICE_REGION_DEFAULT
+    """
+    # 步驟 1：在搜尋框輸入名稱、按 Enter，等待搜尋結果出現
     search_item(win, item_name)
+
+    # 步驟 2：找到「每個價錢」欄位標題座標，點擊排序（低→高）
     cx, cy, _, _, _ = _find_price_header(win, item_type)
     pyautogui.click(win.left + cx, win.top + cy)
     logger.debug(f"  已點擊每個價錢排序 ({cx}, {cy})")
     time.sleep(AFTER_SORT_DELAY)
 
+    # 步驟 3：截取價格欄位並 OCR，回傳第一筆（最低）價格
     if item_type == _ITEM_TYPE_EQUIP:
         return read_price_from_region(win, *(equip_region or PRICE_REGION_EQUIP))
     return read_price_from_region(win, *(default_region or PRICE_REGION_DEFAULT))
