@@ -50,20 +50,22 @@ class AlertBot:
     # ------------------------------------------------------------------
 
     def _fetch_alert_items(self) -> list[dict]:
-        """取得所有啟用中提醒的道具清單（不需登入）。"""
-        try:
-            r = requests.get(
-                f"{API_BASE_URL}/api/bot/alert-items",
-                timeout=10,
-            )
-            r.raise_for_status()
-        except requests.RequestException as e:
-            logger.error(f"[Bot] 取得提醒道具失敗：{e}")
-            return []
-
-        resp = r.json()
-        items = resp.get("data", resp) if isinstance(resp, dict) else resp
-        return items if isinstance(items, list) else []
+        """取得所有啟用中提醒的道具清單（不需登入），失敗自動重試一次。"""
+        for attempt in range(2):
+            try:
+                r = requests.get(
+                    f"{API_BASE_URL}/api/bot/alert-items",
+                    timeout=10,
+                )
+                r.raise_for_status()
+                resp = r.json()
+                items = resp.get("data", resp) if isinstance(resp, dict) else resp
+                return items if isinstance(items, list) else []
+            except requests.RequestException as e:
+                logger.warning(f"[Bot] 取得提醒道具失敗（第 {attempt + 1} 次）：{e}")
+                if attempt == 0:
+                    time.sleep(3)
+        return []
 
     def _record_price(self, item_id: int, price: int) -> bool:
         """將最低價寫入後端（後端自動比對門檻並發送通知）。"""
@@ -94,16 +96,16 @@ class AlertBot:
 
         logger.info(f"[Bot] 共 {len(items)} 個道具待掃描")
 
-        # 初始化遊戲視窗並進入拍賣畫面
+        # 初始化遊戲視窗並進入拍賣畫面（每輪重抓，確保視窗位置最新）
         try:
-            if self._win is None:
-                self._win = get_game_window()
+            self._win = get_game_window()
             if not enter_auction(self._win, btn_pos=self._auction_btn):
                 logger.error("[Bot] 無法進入拍賣畫面，請確認按鈕座標設定正確")
                 return
             verify_price_header(self._win)
         except RuntimeError as e:
             logger.error(f"[Bot] 視窗錯誤：{e}")
+            send_message(f"🚨 Bot 警告：找不到遊戲視窗，遊戲可能已崩潰\n{e}")
             self._win = None
             return
 
@@ -113,7 +115,11 @@ class AlertBot:
 
         # 一次批次取回所有商品的最新 DB 價格，loop 內直接查 dict
         all_ids = [i["item_id"] for i in items if i.get("item_id") is not None]
-        latest_price_map = fetch_latest_prices_batch(all_ids)
+        try:
+            latest_price_map = fetch_latest_prices_batch(all_ids)
+        except Exception as e:
+            logger.warning(f"[Bot] 批次取得最新價格失敗，本輪不做價格比對：{e}")
+            latest_price_map = {}
 
         for idx, item in enumerate(items, 1):
             name            = item.get("item_name", "")
@@ -186,7 +192,9 @@ class AlertBot:
 
             time.sleep(BETWEEN_ITEMS_DELAY)
 
-        exit_auction(self._win)
+        else:
+            # for loop 正常結束（未被 break）才離開拍賣畫面
+            exit_auction(self._win)
         logger.info(f"[Bot] 完成：{ok}/{len(items)} 筆成功")
         if fail:
             logger.warning(f"[Bot] 失敗項目（{len(fail)} 筆）：{', '.join(fail)}")
