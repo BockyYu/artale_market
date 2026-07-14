@@ -108,7 +108,7 @@ class AlertBot:
             return
 
         ok, fail = 0, []
-        consecutive_fails = 0
+        consecutive_fails = 0 # 連續失敗
         total = len(items)
 
         # 一次批次取回所有商品的最新 DB 價格，loop 內直接查 dict
@@ -152,23 +152,33 @@ class AlertBot:
                 else:
                     consecutive_fails = 0
                     latest_price = latest_price_map.get(item_id)
-                    if latest_price is not None and latest_price == price:
-                        logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 與 DB 最新價格相同，略過寫入")
-                        ok += 1
-                    elif self._record_price(item_id, price):
-                        logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 已寫入 DB")
-                        ok += 1
-                    else:
-                        logger.warning(f"▶ [{idx}/{total}] {name} → {price:,} → 寫入 DB 失敗")
-                        fail.append(name)
 
-                    if threshold_price > 0 and price <= threshold_price:
-                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        msg = build_alert_message(name, price, threshold_price, now)
-                        if send_message(msg, bot_id=bot_id):
-                            logger.info(f"  已發送價格通知：{name} → {price:,}")
+                    verified = self._verify_price(
+                        price, latest_price, name, search_name, item_type, idx, total
+                    )
+                    if verified is None:
+                        fail.append(name)
+                    else:
+                        price = verified
+
+                    if verified is not None:
+                        if latest_price is not None and latest_price == price:
+                            logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 與 DB 最新價格相同，略過寫入")
+                            ok += 1
+                        elif self._record_price(item_id, price):
+                            logger.info(f"▶ [{idx}/{total}] {name} → {price:,} → 已寫入 DB")
+                            ok += 1
                         else:
-                            logger.warning(f"  價格符合門檻但通知發送失敗：{name} → {price:,}（請確認後台提醒有設定通知機器人）")
+                            logger.warning(f"▶ [{idx}/{total}] {name} → {price:,} → 寫入 DB 失敗")
+                            fail.append(name)
+
+                        if threshold_price > 0 and price <= threshold_price:
+                            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            msg = build_alert_message(name, price, threshold_price, now)
+                            if send_message(msg, bot_id=bot_id):
+                                logger.info(f"  已發送價格通知：{name} → {price:,}")
+                            else:
+                                logger.warning(f"  價格符合門檻但通知發送失敗：{name} → {price:,}（請確認後台提醒有設定通知機器人）")
 
             except Exception as e:
                 logger.error(f"▶ [{idx}/{total}] {name} → 錯誤：{e}")
@@ -190,6 +200,57 @@ class AlertBot:
     # ------------------------------------------------------------------
     # 公開：啟動
     # ------------------------------------------------------------------
+
+    def _verify_price(
+        self,
+        price: int,
+        latest_price: int | None,
+        name: str,
+        search_name: str,
+        item_type: int,
+        idx: int,
+        total: int,
+    ) -> int | None:
+        """
+        比較當前查到的金額與 DB 最新金額，決定最終寫入價格。
+
+        漲/跌幅 ≤ 50%         → 直接回傳原始價格
+        漲/跌幅 > 50%，第二次失敗  → 回傳 None（略過本次更新）
+        漲/跌幅 > 50%，兩次一致    → 確認正確，回傳該價格
+        漲/跌幅 > 50%，兩次不一致  → 採用第二次結果回傳
+        """
+        if not latest_price or latest_price <= 0:
+            return price
+
+        change_pct = abs(price - latest_price) / latest_price
+        if change_pct <= 0.5:
+            return price
+
+        direction = "漲" if price > latest_price else "跌"
+        logger.warning(
+            f"▶ [{idx}/{total}] {name} → 價格{direction}幅 {change_pct*100:.0f}%"
+            f"（{latest_price:,} → {price:,}），重新查詢確認..."
+        )
+
+        verify_price = scrape_item(
+            self._win, search_name, item_type,
+            equip_region=self._equip_region,
+            default_region=self._default_region,
+        )
+
+        if verify_price is None:
+            logger.warning(f"▶ [{idx}/{total}] {name} → 重新查詢失敗，略過本次更新")
+            return None
+
+        if verify_price != price:
+            logger.warning(
+                f"▶ [{idx}/{total}] {name} → 兩次查詢結果不一致"
+                f"（第一次 {price:,} / 第二次 {verify_price:,}），採用第二次結果"
+            )
+            return verify_price
+
+        logger.info(f"▶ [{idx}/{total}] {name} → 重新確認一致（{price:,}），繼續寫入")
+        return price
 
     def _ensure_positions(self) -> None:
         """
