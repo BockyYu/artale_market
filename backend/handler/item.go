@@ -157,23 +157,54 @@ func (h *ItemHandler) SetTracked(c *gin.Context) {
 	respOK(c, item)
 }
 
-func (h *ItemHandler) buildExcel(dates [7]string) (*excelize.File, string, error) {
-	equips, err := h.svc.GetAllForExport(int(model.ItemTypeEquip), dates)
+// hasDataOnDate 回傳指定日期在任意 sheet 中是否有至少一筆價格。
+func hasDataOnDate(date string, sheets ...[]model.ExportRowDynamic) bool {
+	for _, rows := range sheets {
+		for _, row := range rows {
+			if row.Prices[date] != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (h *ItemHandler) buildExcel() (*excelize.File, string, error) {
+	loc := time.FixedZone("Asia/Taipei", 8*60*60)
+	today := time.Now().In(loc)
+	monthStart := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, loc)
+
+	// 產生本月所有日期（由新到舊）
+	var allDates []string
+	for d := today; !d.Before(monthStart); d = d.AddDate(0, 0, -1) {
+		allDates = append(allDates, d.Format("2006-01-02"))
+	}
+
+	equips, err := h.svc.GetAllForExportDynamic(int(model.ItemTypeEquip), allDates)
 	if err != nil {
 		return nil, "", err
 	}
-	skillbooks, err := h.svc.GetAllForExport(int(model.ItemTypeSkillBook), dates)
+	skillbooks, err := h.svc.GetAllForExportDynamic(int(model.ItemTypeSkillBook), allDates)
 	if err != nil {
 		return nil, "", err
 	}
-	scrolls, err := h.svc.GetAllForExport(int(model.ItemTypeScroll), dates)
+	scrolls, err := h.svc.GetAllForExportDynamic(int(model.ItemTypeScroll), allDates)
 	if err != nil {
 		return nil, "", err
+	}
+
+	// 過濾掉所有道具都沒有資料的日期
+	var dates []string
+	for _, d := range allDates {
+		if hasDataOnDate(d, equips, skillbooks, scrolls) {
+			dates = append(dates, d)
+		}
 	}
 
 	f := excelize.NewFile()
 
 	numStyle, _ := f.NewStyle(&excelize.Style{NumFmt: 3})
+	pctStyle, _ := f.NewStyle(&excelize.Style{NumFmt: 9}) // "0%"，四捨五入到整數
 	headerStyle, _ := f.NewStyle(&excelize.Style{
 		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"D9D9D9"}},
 		Font: &excelize.Font{Bold: true},
@@ -191,21 +222,26 @@ func (h *ItemHandler) buildExcel(dates [7]string) (*excelize.File, string, error
 	yellowFmt, _ := f.NewConditionalStyle(&excelize.Style{
 		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"FFEB9C"}},
 	})
-
-	priceFields := func(row model.ExportRow) [7]*float64 {
-		return [7]*float64{row.D0Price, row.D1Price, row.D2Price, row.D3Price, row.D4Price, row.D5Price, row.D6Price}
-	}
+	// 漲幅%：上漲顯示紅字，下跌顯示綠字
+	riseFmt, _ := f.NewConditionalStyle(&excelize.Style{
+		Font: &excelize.Font{Color: "CC0000"},
+	})
+	fallFmt, _ := f.NewConditionalStyle(&excelize.Style{
+		Font: &excelize.Font{Color: "257A34"},
+	})
 
 	sheets := []struct {
 		name string
-		rows []model.ExportRow
+		rows []model.ExportRowDynamic
 	}{
 		{"裝備", equips},
 		{"技能書", skillbooks},
 		{"卷軸", scrolls},
 	}
 
-	headers := []string{"名稱", "類型"}
+	// 欄位：名稱、類型、月漲幅%、月差價、[日期、漲幅%] 交錯，最後一天無漲幅欄
+	// 月統計固定在 col 3(C) 和 col 4(D)；日期欄從 col 5(E) 開始
+	headers := []string{"名稱", "類型", "月漲幅%", "月差價"}
 	for j, d := range dates {
 		t, _ := time.Parse("2006-01-02", d)
 		label := t.Format("1/2")
@@ -213,8 +249,10 @@ func (h *ItemHandler) buildExcel(dates [7]string) (*excelize.File, string, error
 			label = fmt.Sprintf("今日(%s)", label)
 		}
 		headers = append(headers, label)
+		if j < len(dates)-1 {
+			headers = append(headers, "漲幅%")
+		}
 	}
-	lastCol, _ := excelize.ColumnNumberToName(len(headers))
 
 	for i, sheet := range sheets {
 		if i == 0 {
@@ -234,43 +272,97 @@ func (h *ItemHandler) buildExcel(dates [7]string) (*excelize.File, string, error
 			r := rowIdx + 2
 			f.SetCellValue(ws, mustCell(1, r), row.ItemName)
 			f.SetCellValue(ws, mustCell(2, r), row.Category)
-			for col, p := range priceFields(row) {
+
+			// 月統計：今日價格 vs 本月最早有資料的那天
+			todayPrice := row.Prices[dates[0]]
+			var monthStartPrice *float64
+			for k := len(dates) - 1; k >= 0; k-- {
+				if p := row.Prices[dates[k]]; p != nil {
+					monthStartPrice = p
+					break
+				}
+			}
+			if todayPrice != nil && monthStartPrice != nil && *monthStartPrice > 0 {
+				monthPct := (*todayPrice - *monthStartPrice) / *monthStartPrice
+				monthDiff := int64(*todayPrice) - int64(*monthStartPrice)
+				f.SetCellValue(ws, mustCell(3, r), monthPct)
+				f.SetCellStyle(ws, mustCell(3, r), mustCell(3, r), pctStyle)
+				f.SetCellValue(ws, mustCell(4, r), monthDiff)
+				f.SetCellStyle(ws, mustCell(4, r), mustCell(4, r), numStyle)
+			}
+
+			// 每日價格（日期欄從 col 5 開始，+2 偏移）
+			for j, date := range dates {
+				priceCol := j*2 + 5
+				p := row.Prices[date]
 				if p != nil {
-					cell := mustCell(col+3, r)
+					cell := mustCell(priceCol, r)
 					f.SetCellValue(ws, cell, int64(*p))
 					f.SetCellStyle(ws, cell, cell, numStyle)
+				}
+				if j < len(dates)-1 {
+					pctCol := j*2 + 6
+					pPrev := row.Prices[dates[j+1]]
+					if p != nil && pPrev != nil && *pPrev > 0 {
+						change := (*p - *pPrev) / *pPrev
+						pctCell := mustCell(pctCol, r)
+						f.SetCellValue(ws, pctCell, change)
+						f.SetCellStyle(ws, pctCell, pctCell, pctStyle)
+					}
 				}
 			}
 		}
 
 		f.SetColWidth(ws, "A", "A", 36)
 		f.SetColWidth(ws, "B", "B", 14)
-		f.SetColWidth(ws, "C", lastCol, 14)
+		f.SetColWidth(ws, "C", "C", 9)  // 月漲幅%
+		f.SetColWidth(ws, "D", "D", 12) // 月差價
+		for j := range dates {
+			priceColName, _ := excelize.ColumnNumberToName(j*2 + 5)
+			f.SetColWidth(ws, priceColName, priceColName, 12)
+			if j < len(dates)-1 {
+				pctColName, _ := excelize.ColumnNumberToName(j*2 + 6)
+				f.SetColWidth(ws, pctColName, pctColName, 7)
+			}
+		}
 
 		if len(sheet.rows) > 0 {
-			priceRange := fmt.Sprintf("C2:%s%d", lastCol, len(sheet.rows)+1)
-			f.SetConditionalFormat(ws, priceRange, []excelize.ConditionalFormatOptions{
-				{Type: "cell", Criteria: "<", Value: "1000000", Format: &grayFmt},
-				{Type: "cell", Criteria: "between", MinValue: "1000000", MaxValue: "9999999", Format: &greenFmt},
-				{Type: "cell", Criteria: "between", MinValue: "10000000", MaxValue: "99999999", Format: &blueFmt},
-				{Type: "cell", Criteria: ">=", Value: "100000000", Format: &yellowFmt},
-			})
+			lastRow := len(sheet.rows) + 1
+			// 月統計欄條件格式
+			for _, col := range []string{"C", "D"} {
+				f.SetConditionalFormat(ws, fmt.Sprintf("%s2:%s%d", col, col, lastRow), []excelize.ConditionalFormatOptions{
+					{Type: "cell", Criteria: ">", Value: "0", Format: &riseFmt},
+					{Type: "cell", Criteria: "<", Value: "0", Format: &fallFmt},
+				})
+			}
+			// 每日欄條件格式
+			for j := range dates {
+				priceColName, _ := excelize.ColumnNumberToName(j*2 + 5)
+				priceRange := fmt.Sprintf("%s2:%s%d", priceColName, priceColName, lastRow)
+				f.SetConditionalFormat(ws, priceRange, []excelize.ConditionalFormatOptions{
+					{Type: "cell", Criteria: "<", Value: "1000000", Format: &grayFmt},
+					{Type: "cell", Criteria: "between", MinValue: "1000000", MaxValue: "9999999", Format: &greenFmt},
+					{Type: "cell", Criteria: "between", MinValue: "10000000", MaxValue: "99999999", Format: &blueFmt},
+					{Type: "cell", Criteria: ">=", Value: "100000000", Format: &yellowFmt},
+				})
+				if j < len(dates)-1 {
+					pctColName, _ := excelize.ColumnNumberToName(j*2 + 6)
+					pctRange := fmt.Sprintf("%s2:%s%d", pctColName, pctColName, lastRow)
+					f.SetConditionalFormat(ws, pctRange, []excelize.ConditionalFormatOptions{
+						{Type: "cell", Criteria: ">", Value: "0", Format: &riseFmt},
+						{Type: "cell", Criteria: "<", Value: "0", Format: &fallFmt},
+					})
+				}
+			}
 		}
 	}
 
-	filename := fmt.Sprintf("artale_market_%s.xlsx", dates[0])
+	filename := fmt.Sprintf("artale_market_%s.xlsx", today.Format("2006-01"))
 	return f, filename, nil
 }
 
 func (h *ItemHandler) ExportExcel(c *gin.Context) {
-	loc := time.FixedZone("Asia/Taipei", 8*60*60)
-	ref := time.Now().In(loc)
-	var dates [7]string
-	for i := range dates {
-		dates[i] = ref.AddDate(0, 0, -i).Format("2006-01-02")
-	}
-
-	f, filename, err := h.buildExcel(dates)
+	f, filename, err := h.buildExcel()
 	if err != nil {
 		respInternal(c, err)
 		return
@@ -291,14 +383,7 @@ func (h *ItemHandler) SendExcelToDiscord(c *gin.Context) {
 		return
 	}
 
-	loc := time.FixedZone("Asia/Taipei", 8*60*60)
-	ref := time.Now().In(loc)
-	var dates [7]string
-	for i := range dates {
-		dates[i] = ref.AddDate(0, 0, -i).Format("2006-01-02")
-	}
-
-	f, filename, err := h.buildExcel(dates)
+	f, filename, err := h.buildExcel()
 	if err != nil {
 		respInternal(c, err)
 		return
@@ -311,6 +396,9 @@ func (h *ItemHandler) SendExcelToDiscord(c *gin.Context) {
 		return
 	}
 
+	loc := time.FixedZone("Asia/Taipei", 8*60*60)
+	month := time.Now().In(loc).Format("2006-01")
+
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
 	fw, err := w.CreateFormFile("files[0]", filename)
@@ -322,7 +410,7 @@ func (h *ItemHandler) SendExcelToDiscord(c *gin.Context) {
 		respInternal(c, err)
 		return
 	}
-	w.WriteField("payload_json", fmt.Sprintf(`{"content":"📊 Artale Market 拍賣價格報表(僅參考用途) %s"}`, dates[0]))
+	w.WriteField("payload_json", fmt.Sprintf(`{"content":"📊 Artale Market 拍賣價格報表(僅參考用途) %s"}`, month))
 	w.Close()
 
 	resp, err := http.Post(webhookURL, w.FormDataContentType(), &body)

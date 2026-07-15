@@ -33,6 +33,13 @@ type ExportRow struct {
 	D6Price  *float64 `gorm:"column:d6_price"`
 }
 
+// ExportRowDynamic 月份匯出用的單列資料（動態天數）
+type ExportRowDynamic struct {
+	ItemName string
+	Category string
+	Prices   map[string]*float64 // "YYYY-MM-DD" → 價格
+}
+
 // PriceSummary 商品價格摘要（跨多日聚合，用於列表頁）
 type PriceSummary struct {
 	ItemID            uint       `json:"item_id"              gorm:"column:item_id"`

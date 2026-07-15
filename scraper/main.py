@@ -165,6 +165,13 @@ def run(dry_run: bool = False, fill_missing: bool = False, equip_region=None, de
                                 logger.info(f"  已發送價格異動通知：{name} {change_pct:+.1f}%")
                             else:
                                 logger.warning(f"  價格異動幅度達 {change_pct:+.1f}% 但通知發送失敗：{name}")
+                        elif change_pct <= -30:
+                            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            msg = build_price_surge_message(name, prev_price, price, change_pct, now)
+                            if send_message(msg):
+                                logger.info(f"  已發送價格下跌通知：{name} {change_pct:+.1f}%")
+                            else:
+                                logger.warning(f"  價格下跌幅度達 {change_pct:+.1f}% 但通知發送失敗：{name}")
 
                 alert = alert_map.get(item_id)
                 if alert:

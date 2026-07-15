@@ -20,6 +20,7 @@ type ItemRepository interface {
 	FindByName(name string) (*model.Item, error)
 	FindByIDSummary(id uint, today, yesterday, threeDaysAgo string) (*model.PriceSummary, error)
 	FindAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error)
+	FindAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error)
 	FindTracked(date string) ([]model.Item, error)
 	SetHidden(id uint, hidden bool) error
 	Create(item *model.Item) error
@@ -345,6 +346,54 @@ func (r *itemRepo) FindTracked(date string) ([]model.Item, error) {
 
 func (r *itemRepo) SetHidden(id uint, hidden bool) error {
 	return r.db.Model(&model.Item{}).Where("id = ?", id).Update("is_hidden", hidden).Error
+}
+
+func (r *itemRepo) FindAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error) {
+	if len(dates) == 0 {
+		return nil, nil
+	}
+	type rawRec struct {
+		ItemName     string    `gorm:"column:item_name"`
+		Category     string    `gorm:"column:category"`
+		RecordedDate time.Time `gorm:"column:recorded_date"`
+		Price        float64   `gorm:"column:price"`
+	}
+	var recs []rawRec
+	err := r.db.Model(&model.Item{}).
+		Select("items.name AS item_name, items.category, pr.recorded_date, pr.price").
+		Joins("JOIN price_records pr ON pr.item_id = items.id AND pr.recorded_date IN ?", dates).
+		Where("items.item_type = ? AND items.is_hidden = false", itemType).
+		Order("items.category ASC, items.name ASC").
+		Scan(&recs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	type itemKey struct{ name, category string }
+	var orderList []itemKey
+	seen := map[itemKey]bool{}
+	rowMap := map[itemKey]map[string]*float64{}
+	for _, rec := range recs {
+		key := itemKey{rec.ItemName, rec.Category}
+		if !seen[key] {
+			seen[key] = true
+			orderList = append(orderList, key)
+			rowMap[key] = map[string]*float64{}
+		}
+		dateStr := rec.RecordedDate.Format("2006-01-02")
+		p := rec.Price
+		rowMap[key][dateStr] = &p
+	}
+
+	result := make([]model.ExportRowDynamic, 0, len(orderList))
+	for _, key := range orderList {
+		result = append(result, model.ExportRowDynamic{
+			ItemName: key.name,
+			Category: key.category,
+			Prices:   rowMap[key],
+		})
+	}
+	return result, nil
 }
 
 func (r *itemRepo) FindAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error) {

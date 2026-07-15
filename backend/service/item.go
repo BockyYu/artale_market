@@ -18,6 +18,7 @@ type ItemService interface {
 	GetPriceSummary(id uint) (*model.PriceSummary, error)
 	GetTracked(date string) ([]model.Item, error)
 	GetAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error)
+	GetAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error)
 	SetHidden(id uint, hidden bool) error
 	Create(item *model.Item) error
 	Update(id uint, name, englishName string, searchMode int, itemType model.ItemType, percentage int, category, description string) (*model.Item, error)
@@ -135,6 +136,10 @@ func (s *itemService) GetTracked(date string) ([]model.Item, error) {
 
 func (s *itemService) GetAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error) {
 	return s.itemRepo.FindAllForExport(itemType, dates)
+}
+
+func (s *itemService) GetAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error) {
+	return s.itemRepo.FindAllForExportDynamic(itemType, dates)
 }
 
 func (s *itemService) SetHidden(id uint, hidden bool) error {
