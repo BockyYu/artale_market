@@ -23,6 +23,7 @@ import schedule
 
 from api_client import fetch_latest_prices_batch
 from config import API_BASE_URL, BETWEEN_ITEMS_DELAY, SCHEDULE_INTERVAL_MINUTES
+from main import run as main_run
 from notify import send_message, build_alert_message
 from scraper import get_game_window, scrape_item, verify_price_header, is_in_auction_screen, enter_auction, reenter_auction, exit_auction, preload_ocr
 
@@ -366,25 +367,29 @@ class AlertBot:
         """
         啟動 Bot。
 
-        run_time=None  → 間隔模式：立即執行一次，之後每 SCHEDULE_INTERVAL_MINUTES 分鐘觸發
-        run_time="HH:MM" → 每日定時模式：每天指定時間執行一次（不立即執行）
+        run_time=None    → 每 SCHEDULE_INTERVAL_MINUTES 分鐘執行 _run_once
+        run_time="HH:MM" → 同上，並額外在每天指定時間執行 main.run()（完整掃價）
         """
+        logger.info(f"[Bot] 啟動（每 {SCHEDULE_INTERVAL_MINUTES} 分鐘間隔模式）")
         if run_time:
-            logger.info(f"[Bot] 啟動（每日 {run_time} 定時模式）")
-        else:
-            logger.info(f"[Bot] 啟動（每 {SCHEDULE_INTERVAL_MINUTES} 分鐘間隔模式）")
+            logger.info(f"[Bot] 每日 {run_time} 將額外執行完整掃價（main 排程）")
         logger.info("[Bot] 按 Ctrl+C 停止")
         self._ensure_positions()
         logger.info("[Bot] 預載 OCR 引擎...")
         preload_ocr()
         logger.info("[Bot] OCR 就緒，開始執行")
 
+        self._run_once()
+        schedule.every(SCHEDULE_INTERVAL_MINUTES).minutes.do(self._run_once)
+
         if run_time:
-            logger.info(f"[Bot] 等待每日 {run_time} 執行...")
-            schedule.every().day.at(run_time).do(self._run_once)
-        else:
-            self._run_once()
-            schedule.every(SCHEDULE_INTERVAL_MINUTES).minutes.do(self._run_once)
+            schedule.every().day.at(run_time).do(
+                lambda: main_run(
+                    equip_region=self._equip_region,
+                    default_region=self._default_region,
+                    auction_btn=self._auction_btn,
+                )
+            )
 
         try:
             while True:
