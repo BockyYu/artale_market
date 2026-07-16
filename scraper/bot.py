@@ -362,18 +362,29 @@ class AlertBot:
 
         logger.info("[Bot] 所有座標已就緒")
 
-    def start(self) -> None:
-        """立即執行一次，之後每 SCHEDULE_INTERVAL_MINUTES 分鐘自動觸發。"""
-        logger.info(f"[Bot] 啟動，間隔：{SCHEDULE_INTERVAL_MINUTES} 分鐘")
+    def start(self, run_time: str | None = None) -> None:
+        """
+        啟動 Bot。
+
+        run_time=None  → 間隔模式：立即執行一次，之後每 SCHEDULE_INTERVAL_MINUTES 分鐘觸發
+        run_time="HH:MM" → 每日定時模式：每天指定時間執行一次（不立即執行）
+        """
+        if run_time:
+            logger.info(f"[Bot] 啟動（每日 {run_time} 定時模式）")
+        else:
+            logger.info(f"[Bot] 啟動（每 {SCHEDULE_INTERVAL_MINUTES} 分鐘間隔模式）")
         logger.info("[Bot] 按 Ctrl+C 停止")
         self._ensure_positions()
         logger.info("[Bot] 預載 OCR 引擎...")
         preload_ocr()
         logger.info("[Bot] OCR 就緒，開始執行")
 
-        self._run_once()
-
-        schedule.every(SCHEDULE_INTERVAL_MINUTES).minutes.do(self._run_once)
+        if run_time:
+            logger.info(f"[Bot] 等待每日 {run_time} 執行...")
+            schedule.every().day.at(run_time).do(self._run_once)
+        else:
+            self._run_once()
+            schedule.every(SCHEDULE_INTERVAL_MINUTES).minutes.do(self._run_once)
 
         try:
             while True:
@@ -447,6 +458,8 @@ if __name__ == "__main__":
                         help="互動式校準並儲存第一筆價格列點擊座標到 .env")
     parser.add_argument("--set-auction-exit", action="store_true",
                         help="互動式校準並儲存離開拍賣按鈕座標到 .env")
+    parser.add_argument("--time", default=None, metavar="HH:MM",
+                        help="每日定時執行模式，例如 --time 20:00（未指定則為每 N 分鐘間隔模式）")
     args = parser.parse_args()
 
     equip_region = _parse_region(args.equip_region) if args.equip_region else None
@@ -473,4 +486,4 @@ if __name__ == "__main__":
         _calibrate_and_save("請先開啟拍賣畫面，讓離開按鈕可見", "請將滑鼠移到離開拍賣的按鈕上", "AUCTION_EXIT_POS")
         sys.exit(0)
 
-    AlertBot(equip_region=equip_region, default_region=default_region, auction_btn=auction_btn).start()
+    AlertBot(equip_region=equip_region, default_region=default_region, auction_btn=auction_btn).start(run_time=args.time)
