@@ -133,11 +133,18 @@ export async function listItemCategories(itemType = 0) {
   return handleResponse(res)
 }
 
-export async function listItems({ sortBy = '', search = '', filterType = 0, filterPriority = -1, page = 1, pageSize = 20 } = {}) {
+export async function listUsedCategories(itemType = 0) {
+  const params = itemType > 0 ? `?item_type=${itemType}` : ''
+  const res = await fetch(`${BASE}/items/used-categories${params}`, { headers: authHeaders() })
+  return handleResponse(res)
+}
+
+export async function listItems({ sortBy = '', search = '', filterTypes = [], filterCategories = [], filterPriority = -1, page = 1, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ page, page_size: pageSize })
   if (sortBy) params.set('sort_by', sortBy)
   if (search) params.set('search', search)
-  if (filterType > 0) params.set('filter_type', filterType)
+  filterTypes.forEach(t => params.append('filter_type', t))
+  filterCategories.forEach(c => params.append('filter_category', c))
   if (filterPriority >= 0) params.set('filter_priority', filterPriority)
   const res = await fetch(`${BASE}/items?${params}`, { headers: authHeaders() })
   return handleResponse(res)

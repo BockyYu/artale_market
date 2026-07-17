@@ -35,6 +35,7 @@ func registerAdmin(g *gin.RouterGroup, d *Deps) {
 		auth.GET("/export/excel", d.Item.ExportExcel)
 		auth.POST("/export/discord", d.Item.SendExcelToDiscord)
 		auth.GET("/items/categories", d.Item.GetCategories)
+		auth.GET("/items/used-categories", d.Item.GetUsedCategories)
 		auth.GET("/items", d.Item.AdminGetAll)
 		auth.POST("/items", d.Item.Create)
 		auth.PUT("/items/:id", d.Item.Update)

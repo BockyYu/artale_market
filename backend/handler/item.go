@@ -41,7 +41,6 @@ func (h *ItemHandler) GetAll(c *gin.Context) {
 func (h *ItemHandler) AdminGetAll(c *gin.Context) {
 	sortBy := c.Query("sort_by")
 	search := c.Query("search")
-	filterType, _ := strconv.Atoi(c.DefaultQuery("filter_type", "0"))
 	filterPriority, _ := strconv.Atoi(c.DefaultQuery("filter_priority", "-1"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -49,7 +48,15 @@ func (h *ItemHandler) AdminGetAll(c *gin.Context) {
 		page = 1
 	}
 
-	result, err := h.svc.GetAllWithLatestPrice(sortBy, search, filterType, filterPriority, page, pageSize)
+	var filterTypes []int
+	for _, s := range c.QueryArray("filter_type") {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			filterTypes = append(filterTypes, v)
+		}
+	}
+	filterCategories := c.QueryArray("filter_category")
+
+	result, err := h.svc.GetAllWithLatestPrice(sortBy, search, filterTypes, filterCategories, filterPriority, page, pageSize)
 	if err != nil {
 		respInternal(c, err)
 		return
@@ -89,8 +96,18 @@ func (h *ItemHandler) Update(c *gin.Context) {
 }
 
 func (h *ItemHandler) GetCategories(c *gin.Context) {
-	itemType, _ := strconv.Atoi(c.DefaultQuery("item_type", "0"))
-	categories, err := h.categoryRepo.FindByItemType(itemType)
+	t, _ := strconv.Atoi(c.DefaultQuery("item_type", "0"))
+	categories, err := h.categoryRepo.FindByItemType(model.ItemType(t))
+	if err != nil {
+		respInternal(c, err)
+		return
+	}
+	respOK(c, categories)
+}
+
+func (h *ItemHandler) GetUsedCategories(c *gin.Context) {
+	t, _ := strconv.Atoi(c.DefaultQuery("item_type", "0"))
+	categories, err := h.categoryRepo.FindUsedByItemType(model.ItemType(t))
 	if err != nil {
 		respInternal(c, err)
 		return
@@ -180,15 +197,15 @@ func (h *ItemHandler) buildExcel() (*excelize.File, string, error) {
 		allDates = append(allDates, d.Format("2006-01-02"))
 	}
 
-	equips, err := h.svc.GetAllForExportDynamic(int(model.ItemTypeEquip), allDates)
+	equips, err := h.svc.GetAllForExportDynamic(model.ItemTypeEquip, allDates)
 	if err != nil {
 		return nil, "", err
 	}
-	skillbooks, err := h.svc.GetAllForExportDynamic(int(model.ItemTypeSkillBook), allDates)
+	skillbooks, err := h.svc.GetAllForExportDynamic(model.ItemTypeSkillBook, allDates)
 	if err != nil {
 		return nil, "", err
 	}
-	scrolls, err := h.svc.GetAllForExportDynamic(int(model.ItemTypeScroll), allDates)
+	scrolls, err := h.svc.GetAllForExportDynamic(model.ItemTypeScroll, allDates)
 	if err != nil {
 		return nil, "", err
 	}

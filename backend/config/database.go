@@ -114,17 +114,17 @@ func seedSystemSettings(db *gorm.DB) {
 func seedCategories(db *gorm.DB) {
 	type entry struct {
 		name     string
-		itemType int
+		itemType model.ItemType
 	}
 	var seeds []entry
 	for _, n := range model.ScrollCategories {
-		seeds = append(seeds, entry{n, 1})
+		seeds = append(seeds, entry{n, model.ItemTypeScroll})
 	}
 	for _, n := range model.SkillBookCategories {
-		seeds = append(seeds, entry{n, 4})
+		seeds = append(seeds, entry{n, model.ItemTypeSkillBook})
 	}
 	for _, n := range model.EquipCategories {
-		seeds = append(seeds, entry{n, 6})
+		seeds = append(seeds, entry{n, model.ItemTypeEquip})
 	}
 
 	inserted := 0

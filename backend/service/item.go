@@ -13,12 +13,12 @@ import (
 
 type ItemService interface {
 	GetAll() ([]model.Item, error)
-	GetAllWithLatestPrice(sortBy, search string, filterType, filterPriority, page, pageSize int) (*model.AdminItemPage, error)
+	GetAllWithLatestPrice(sortBy, search string, filterTypes []int, filterCategories []string, filterPriority, page, pageSize int) (*model.AdminItemPage, error)
 	GetByID(id uint) (*model.Item, error)
 	GetPriceSummary(id uint) (*model.PriceSummary, error)
 	GetTracked(date string) ([]model.Item, error)
-	GetAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error)
-	GetAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error)
+	GetAllForExport(itemType model.ItemType, dates [7]string) ([]model.ExportRow, error)
+	GetAllForExportDynamic(itemType model.ItemType, dates []string) ([]model.ExportRowDynamic, error)
 	SetHidden(id uint, hidden bool) error
 	Create(item *model.Item) error
 	Update(id uint, name, englishName string, searchMode int, itemType model.ItemType, percentage int, category, description string) (*model.Item, error)
@@ -40,7 +40,7 @@ func (s *itemService) GetAll() ([]model.Item, error) {
 	return s.itemRepo.FindAll()
 }
 
-func (s *itemService) GetAllWithLatestPrice(sortBy, search string, filterType, filterPriority, page, pageSize int) (*model.AdminItemPage, error) {
+func (s *itemService) GetAllWithLatestPrice(sortBy, search string, filterTypes []int, filterCategories []string, filterPriority, page, pageSize int) (*model.AdminItemPage, error) {
 	viewsSort := sortBy == "views_desc" || sortBy == "views_asc"
 
 	fetchPage, fetchSize := page, pageSize
@@ -48,7 +48,7 @@ func (s *itemService) GetAllWithLatestPrice(sortBy, search string, filterType, f
 		fetchPage, fetchSize = 1, 0 // fetch all, paginate in memory
 	}
 
-	rows, total, err := s.itemRepo.FindAllWithLatestPrice(sortBy, search, filterType, filterPriority, fetchPage, fetchSize)
+	rows, total, err := s.itemRepo.FindAllWithLatestPrice(sortBy, search, filterTypes, filterCategories, filterPriority, fetchPage, fetchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +134,11 @@ func (s *itemService) GetTracked(date string) ([]model.Item, error) {
 	return s.itemRepo.FindTracked(date)
 }
 
-func (s *itemService) GetAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error) {
+func (s *itemService) GetAllForExport(itemType model.ItemType, dates [7]string) ([]model.ExportRow, error) {
 	return s.itemRepo.FindAllForExport(itemType, dates)
 }
 
-func (s *itemService) GetAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error) {
+func (s *itemService) GetAllForExportDynamic(itemType model.ItemType, dates []string) ([]model.ExportRowDynamic, error) {
 	return s.itemRepo.FindAllForExportDynamic(itemType, dates)
 }
 

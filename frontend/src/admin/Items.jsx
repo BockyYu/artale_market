@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { listItems, listItemCategories, createItem, updateItem, updateItemTrack, getItemHistories, togglePriceHistoryHidden, recordItemPrice, exportExcel, sendExcelToDiscord, setItemHidden } from './api'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { listItems, listItemCategories, listUsedCategories, createItem, updateItem, updateItemTrack, getItemHistories, togglePriceHistoryHidden, recordItemPrice, exportExcel, sendExcelToDiscord, setItemHidden } from './api'
 
 const EMPTY_FORM = { name: '', english_name: '', search_mode: 1, item_type: 1, category: '', percentage: 0, description: '', track_priority: 0 }
 
@@ -32,13 +32,20 @@ const PAGE_SIZE = 20
 
 export default function Items() {
   const [categories, setCategories] = useState([])
+  const [slotCategories, setSlotCategories] = useState([])
+  const [classCategories, setClassCategories] = useState([])
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState(0)
+  const [filterTypes, setFilterTypes] = useState([])
+  const [filterCategories, setFilterCategories] = useState([])
   const [filterPriority, setFilterPriority] = useState(-1)
+  const [showSlotDrop, setShowSlotDrop] = useState(false)
+  const [showClassDrop, setShowClassDrop] = useState(false)
+  const slotDropRef = useRef(null)
+  const classDropRef = useRef(null)
   const [updating, setUpdating] = useState(null)
   const [sortBy, setSortBy] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -61,7 +68,7 @@ export default function Items() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await listItems({ sortBy, search, filterType, filterPriority, page, pageSize: PAGE_SIZE })
+      const res = await listItems({ sortBy, search, filterTypes, filterCategories, filterPriority, page, pageSize: PAGE_SIZE })
       setItems(res.data || [])
       setTotal(res.total || 0)
     } catch (err) {
@@ -69,12 +76,38 @@ export default function Items() {
     } finally {
       setLoading(false)
     }
-  }, [sortBy, search, filterType, filterPriority, page])
+  }, [sortBy, search, filterTypes, filterCategories, filterPriority, page])
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    listUsedCategories(6).then(setSlotCategories).catch(() => setSlotCategories([]))
+    listUsedCategories(4).then(setClassCategories).catch(() => setClassCategories([]))
+  }, [])
+
+  useEffect(() => {
+    if (!showSlotDrop) return
+    function handler(e) { if (slotDropRef.current && !slotDropRef.current.contains(e.target)) setShowSlotDrop(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showSlotDrop])
+
+  useEffect(() => {
+    if (!showClassDrop) return
+    function handler(e) { if (classDropRef.current && !classDropRef.current.contains(e.target)) setShowClassDrop(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showClassDrop])
+
   function handleSearchChange(val) { setSearch(val); setPage(1) }
-  function handleFilterTypeChange(val) { setFilterType(val); setPage(1) }
+  function toggleFilterType(typeId) {
+    setFilterTypes(prev => prev.includes(typeId) ? prev.filter(t => t !== typeId) : [...prev, typeId])
+    setPage(1)
+  }
+  function toggleFilterCategory(cat) {
+    setFilterCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
+    setPage(1)
+  }
   function handleFilterPriorityChange(val) { setFilterPriority(val); setPage(1) }
 
   function handleSortId() {
@@ -281,18 +314,6 @@ export default function Items() {
 
           <select
             className="search-input"
-            value={filterType}
-            onChange={e => handleFilterTypeChange(Number(e.target.value))}
-            style={{ flex: '0 0 auto' }}
-          >
-            <option value={0}>全部類型</option>
-            {Object.entries(ITEM_TYPE_LABEL).map(([k, v]) => (
-              <option key={k} value={Number(k)}>{v}</option>
-            ))}
-          </select>
-
-          <select
-            className="search-input"
             value={filterPriority}
             onChange={e => handleFilterPriorityChange(Number(e.target.value))}
             style={{ flex: '0 0 auto' }}
@@ -302,6 +323,85 @@ export default function Items() {
               <option key={k} value={Number(k)}>{v}</option>
             ))}
           </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0 4px' }}>
+          <span style={{ fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>類型：</span>
+          {Object.entries(ITEM_TYPE_LABEL).map(([k, v]) => {
+            const typeId = Number(k)
+            const active = filterTypes.includes(typeId)
+            return (
+              <button
+                key={k}
+                onClick={() => toggleFilterType(typeId)}
+                style={{
+                  padding: '3px 10px', fontSize: 13, borderRadius: 4, cursor: 'pointer', border: '1px solid',
+                  borderColor: active ? '#2563eb' : '#d1d5db',
+                  background: active ? '#2563eb' : '#fff',
+                  color: active ? '#fff' : '#374151',
+                  fontWeight: active ? 600 : 400,
+                }}
+              >{v}</button>
+            )
+          })}
+          {filterTypes.length > 0 && (
+            <button
+              onClick={() => { setFilterTypes([]); setPage(1) }}
+              style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+            >清除</button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '4px 0 8px', flexWrap: 'wrap' }}>
+          {[
+            { label: '分類', ref: slotDropRef, items: slotCategories, show: showSlotDrop, setShow: setShowSlotDrop },
+            { label: '職業', ref: classDropRef, items: classCategories, show: showClassDrop, setShow: setShowClassDrop },
+          ].map(({ label, ref, items: opts, show, setShow }) => {
+            const activeCount = opts.filter(c => filterCategories.includes(c)).length
+            return (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>{label}：</span>
+                <div ref={ref} style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShow(v => !v)}
+                    style={{
+                      padding: '4px 10px', fontSize: 13, borderRadius: 4, cursor: 'pointer',
+                      border: '1px solid', borderColor: activeCount > 0 ? '#2563eb' : '#d1d5db',
+                      background: activeCount > 0 ? '#eff6ff' : '#fff',
+                      color: activeCount > 0 ? '#2563eb' : '#374151',
+                      minWidth: 90,
+                    }}
+                  >
+                    {activeCount === 0 ? `全部${label}` : `已選 ${activeCount} 項`} ▾
+                  </button>
+                  {show && (
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 200,
+                      background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.1)', padding: '4px 0',
+                      maxHeight: 260, overflowY: 'auto', minWidth: 140,
+                    }}>
+                      {opts.length === 0 && (
+                        <div style={{ padding: '8px 12px', fontSize: 13, color: '#9ca3af' }}>無資料</div>
+                      )}
+                      {opts.map(cat => (
+                        <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 13, userSelect: 'none' }}>
+                          <input type="checkbox" checked={filterCategories.includes(cat)} onChange={() => toggleFilterCategory(cat)} style={{ cursor: 'pointer' }} />
+                          {cat}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {activeCount > 0 && (
+                  <button
+                    onClick={() => { setFilterCategories(prev => prev.filter(c => !opts.includes(c))); setPage(1) }}
+                    style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  >清除</button>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         <table>

@@ -10,7 +10,7 @@ import (
 
 type ItemRepository interface {
 	FindAll() ([]model.Item, error)
-	FindAllWithLatestPrice(sortBy, search string, filterType, filterPriority, page, pageSize int) ([]model.ItemAdminRow, int64, error)
+	FindAllWithLatestPrice(sortBy, search string, filterTypes []int, filterCategories []string, filterPriority, page, pageSize int) ([]model.ItemAdminRow, int64, error)
 	FindWithFilters(pcts []int, categories []string) ([]model.Item, error)
 	FindPage(pcts []int, categories []string, itemTypes []int, sortBy string, date string, page, pageSize int) ([]model.Item, int64, error)
 	FindScrollPage(pcts []int, categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
@@ -19,8 +19,8 @@ type ItemRepository interface {
 	FindByID(id uint) (*model.Item, error)
 	FindByName(name string) (*model.Item, error)
 	FindByIDSummary(id uint, today, yesterday, threeDaysAgo string) (*model.PriceSummary, error)
-	FindAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error)
-	FindAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error)
+	FindAllForExport(itemType model.ItemType, dates [7]string) ([]model.ExportRow, error)
+	FindAllForExportDynamic(itemType model.ItemType, dates []string) ([]model.ExportRowDynamic, error)
 	FindTracked(date string) ([]model.Item, error)
 	SetHidden(id uint, hidden bool) error
 	Create(item *model.Item) error
@@ -42,13 +42,16 @@ func (r *itemRepo) FindAll() ([]model.Item, error) {
 	return items, err
 }
 
-func (r *itemRepo) applyAdminFilters(q *gorm.DB, search string, filterType, filterPriority int) *gorm.DB {
+func (r *itemRepo) applyAdminFilters(q *gorm.DB, search string, filterTypes []int, filterCategories []string, filterPriority int) *gorm.DB {
 	q = q.Where("items.is_hidden = false")
 	if search != "" {
 		q = q.Where("items.name ILIKE ? OR items.category ILIKE ?", "%"+search+"%", "%"+search+"%")
 	}
-	if filterType > 0 {
-		q = q.Where("items.item_type = ?", filterType)
+	if len(filterTypes) > 0 {
+		q = q.Where("items.item_type IN ?", filterTypes)
+	}
+	if len(filterCategories) > 0 {
+		q = q.Where("items.category IN ?", filterCategories)
 	}
 	if filterPriority >= 0 {
 		q = q.Where("items.track_priority = ?", filterPriority)
@@ -56,7 +59,7 @@ func (r *itemRepo) applyAdminFilters(q *gorm.DB, search string, filterType, filt
 	return q
 }
 
-func (r *itemRepo) FindAllWithLatestPrice(sortBy, search string, filterType, filterPriority, page, pageSize int) ([]model.ItemAdminRow, int64, error) {
+func (r *itemRepo) FindAllWithLatestPrice(sortBy, search string, filterTypes []int, filterCategories []string, filterPriority, page, pageSize int) ([]model.ItemAdminRow, int64, error) {
 	var rows []model.ItemAdminRow
 	var total int64
 
@@ -74,14 +77,14 @@ func (r *itemRepo) FindAllWithLatestPrice(sortBy, search string, filterType, fil
 		order = "today_changes ASC NULLS LAST, items.id ASC"
 	}
 
-	if err := r.applyAdminFilters(r.db.Model(&model.Item{}), search, filterType, filterPriority).
+	if err := r.applyAdminFilters(r.db.Model(&model.Item{}), search, filterTypes, filterCategories, filterPriority).
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	loc, _ := time.LoadLocation("Asia/Taipei")
 	today := time.Now().In(loc).Format("2006-01-02")
-	q := r.applyAdminFilters(r.db.Model(&model.Item{}), search, filterType, filterPriority).
+	q := r.applyAdminFilters(r.db.Model(&model.Item{}), search, filterTypes, filterCategories, filterPriority).
 		Select("items.*, " +
 			"(SELECT price FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price, " +
 			"(SELECT COALESCE(NULLIF(updated_at, '0001-01-01'), created_at) FROM price_records WHERE item_id = items.id ORDER BY recorded_date DESC, updated_at DESC LIMIT 1) AS latest_price_at, " +
@@ -348,7 +351,7 @@ func (r *itemRepo) SetHidden(id uint, hidden bool) error {
 	return r.db.Model(&model.Item{}).Where("id = ?", id).Update("is_hidden", hidden).Error
 }
 
-func (r *itemRepo) FindAllForExportDynamic(itemType int, dates []string) ([]model.ExportRowDynamic, error) {
+func (r *itemRepo) FindAllForExportDynamic(itemType model.ItemType, dates []string) ([]model.ExportRowDynamic, error) {
 	if len(dates) == 0 {
 		return nil, nil
 	}
@@ -396,7 +399,7 @@ func (r *itemRepo) FindAllForExportDynamic(itemType int, dates []string) ([]mode
 	return result, nil
 }
 
-func (r *itemRepo) FindAllForExport(itemType int, dates [7]string) ([]model.ExportRow, error) {
+func (r *itemRepo) FindAllForExport(itemType model.ItemType, dates [7]string) ([]model.ExportRow, error) {
 	var rows []model.ExportRow
 	err := r.db.Debug().Model(&model.Item{}).
 		Select(`items.name AS item_name, items.category AS category,
