@@ -81,6 +81,12 @@ export default function App() {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
+  const prevDay = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setDate(d.getDate() - 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
   const [searchText, setSearchText] = useState('')
   const [filterPct, setFilterPct] = useState([])
   const [filterCategories, setFilterCategories] = useState([])
@@ -100,9 +106,11 @@ export default function App() {
   const [scrollPage, setScrollPage] = useState(1)
   const [scrollPageSize, setScrollPageSize] = useState(10)
   const [scrollTotal, setScrollTotal] = useState(0)
+  const [scrollDataDate, setScrollDataDate] = useState(null)
   const [skillBookPage, setSkillBookPage] = useState(1)
   const [skillBookPageSize, setSkillBookPageSize] = useState(10)
   const [skillBookTotal, setSkillBookTotal] = useState(0)
+  const [skillBookDataDate, setSkillBookDataDate] = useState(null)
 
   const [equipItems, setEquipItems] = useState([])
   const [equipSortBy, setEquipSortBy] = useState('price_desc')
@@ -110,20 +118,29 @@ export default function App() {
   const [equipPage, setEquipPage] = useState(1)
   const [equipPageSize, setEquipPageSize] = useState(10)
   const [equipTotal, setEquipTotal] = useState(0)
+  const [equipDataDate, setEquipDataDate] = useState(null)
 
   const fetchSummary = useCallback(async (pcts, categories, sortBy, page, pageSize) => {
     try {
-      const res = await memberFetch(SCROLL_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: localToday(), percentage: pcts, category: categories.length === 0 ? ['scroll_all'] : categories, sort_by: sortBy, page, page_size: pageSize }),
-      })
-      const result = await res.json()
+      let date = localToday()
+      let result = null
+      for (let i = 0; i < 2; i++) {
+        const res = await memberFetch(SCROLL_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, percentage: pcts, category: categories.length === 0 ? ['scroll_all'] : categories, sort_by: sortBy, page, page_size: pageSize }),
+        })
+        result = await res.json()
+        if ((result?.total || 0) > 0) break
+        date = prevDay(date)
+      }
       setSummary(result?.data || [])
       setScrollTotal(result?.total || 0)
+      setScrollDataDate(date)
     } catch {
       setSummary([])
       setScrollTotal(0)
+      setScrollDataDate(null)
     }
   }, [])
 
@@ -139,34 +156,50 @@ export default function App() {
 
   const fetchEquips = useCallback(async (categories, sortBy, page, pageSize) => {
     try {
-      const res = await memberFetch(EQUIP_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: localToday(), category: categories, sort_by: sortBy, page, page_size: pageSize }),
-      })
-      const result = await res.json()
+      let date = localToday()
+      let result = null
+      for (let i = 0; i < 2; i++) {
+        const res = await memberFetch(EQUIP_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, category: categories, sort_by: sortBy, page, page_size: pageSize }),
+        })
+        result = await res.json()
+        if ((result?.total || 0) > 0) break
+        date = prevDay(date)
+      }
       setEquipItems(result?.data || [])
       setEquipTotal(result?.total || 0)
+      setEquipDataDate(date)
     } catch {
       setEquipItems([])
       setEquipTotal(0)
+      setEquipDataDate(null)
     }
   }, [])
 
   const fetchSkillBooks = useCallback(async (job, sortBy, page, pageSize) => {
     try {
       const categories = job === ALL_SKILLBOOK_JOB ? [] : [job]
-      const res = await memberFetch(SKILLBOOK_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: localToday(), category: categories, sort_by: sortBy, page, page_size: pageSize }),
-      })
-      const result = await res.json()
+      let date = localToday()
+      let result = null
+      for (let i = 0; i < 2; i++) {
+        const res = await memberFetch(SKILLBOOK_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, category: categories, sort_by: sortBy, page, page_size: pageSize }),
+        })
+        result = await res.json()
+        if ((result?.total || 0) > 0) break
+        date = prevDay(date)
+      }
       setSkillBookItems(result?.data || [])
       setSkillBookTotal(result?.total || 0)
+      setSkillBookDataDate(date)
     } catch {
       setSkillBookItems([])
       setSkillBookTotal(0)
+      setSkillBookDataDate(null)
     }
   }, [])
 
@@ -439,6 +472,20 @@ export default function App() {
     },
   ]
 
+  const DataDateBanner = ({ date }) => {
+    if (!date || date === localToday()) return null
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '6px 12px', marginBottom: 8, borderRadius: 6,
+        background: '#fffbeb', border: '1px solid #fcd34d',
+        fontSize: 13, color: '#92400e',
+      }}>
+        ⚠️ 今日尚無資料，顯示 <strong>{date}</strong> 的價格
+      </div>
+    )
+  }
+
   const fmt = (price) =>
     price != null ? price.toLocaleString() : '—'
 
@@ -707,6 +754,7 @@ export default function App() {
 
           {viewMode === 'equip' ? (
             <>
+              <DataDateBanner date={equipDataDate} />
               <div className="table-wrapper">
                 <table>
                   <thead>
@@ -789,6 +837,7 @@ export default function App() {
             </>
           ) : viewMode === 'scroll' ? (
             <>
+              <DataDateBanner date={scrollDataDate} />
               <div className="table-wrapper">
                 <table>
                   <thead>
@@ -875,6 +924,7 @@ export default function App() {
             </>
           ) : (
             <>
+              <DataDateBanner date={skillBookDataDate} />
               <div className="table-wrapper">
                 <table>
                   <thead>
