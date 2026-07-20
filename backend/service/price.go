@@ -14,6 +14,7 @@ type PriceService interface {
 	GetScrollSummary(date string, pcts []int, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	GetEquipSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
+	GetOtherSummary(date string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error)
 	GetLatest(itemID uint) (*model.PriceRecord, error)
 	GetLatestBatch(itemIDs []uint) ([]model.PriceRecord, error)
@@ -178,6 +179,32 @@ func (svc *priceService) GetEquipSummary(date string, categories []string, sortB
 	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
 
 	summaries, total, err := svc.itemRepo.FindEquipPage(categories, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range summaries {
+		s := &summaries[i]
+		if s.TodayPrice != nil && s.YesterdayPrice != nil && *s.YesterdayPrice != 0 {
+			pct := ((*s.TodayPrice - *s.YesterdayPrice) / *s.YesterdayPrice) * 100
+			pct = math.Round(pct*100) / 100
+			s.ChangePercent = &pct
+		}
+	}
+
+	return &model.PagedSummary{Data: summaries, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+func (svc *priceService) GetOtherSummary(date string, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
+	ref, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		ref = time.Now()
+	}
+	today := ref.Format("2006-01-02")
+	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
+	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
+
+	summaries, total, err := svc.itemRepo.FindOtherPage(sortBy, today, yesterday, threeDaysAgo, page, pageSize)
 	if err != nil {
 		return nil, err
 	}

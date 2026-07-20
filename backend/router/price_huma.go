@@ -68,6 +68,16 @@ func registerPriceHuma(publicApi, memberApi, adminApi huma.API, d *Deps) {
 		Security:    []map[string][]string{{"memberBearerAuth": {}}},
 	}, h.GetEquipSummary)
 
+	huma.Register(memberApi, huma.Operation{
+		OperationID: "member-search-others",
+		Method:      "POST",
+		Path:        "/v1/member/others/search",
+		Summary:     "查詢其他道具價格（分頁）",
+		Description: "查詢素材、消耗品、商城、活動道具等其他類型道具的價格，支援多種排序方式。需要會員 JWT 認證。",
+		Tags:        []string{"prices", "member"},
+		Security:    []map[string][]string{{"memberBearerAuth": {}}},
+	}, h.GetOtherSummary)
+
 	// ── 管理員路由（/api/v1/admin）───────────────────────────────────
 	huma.Register(adminApi, huma.Operation{
 		OperationID: "admin-record-price",

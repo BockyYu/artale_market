@@ -24,5 +24,6 @@ func registerMemberV1(g *gin.RouterGroup, d *Deps) {
 		auth.GET("/me", d.Member.Me)
 		auth.GET("/items", d.Item.GetAll)
 		auth.GET("/items/:id/prices", d.Item.GetByID)
+		auth.GET("/items/:id/price-history", d.Price.GetMemberHistory)
 	}
 }

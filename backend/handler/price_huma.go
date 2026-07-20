@@ -86,6 +86,15 @@ type HumaEquipSearchInput struct {
 	}
 }
 
+type HumaOtherSearchInput struct {
+	Body struct {
+		Date     string `json:"date,omitempty"    doc:"查詢日期，格式 YYYY-MM-DD，省略時預設台北今天" format:"date"`
+		SortBy   string `json:"sort_by,omitempty" doc:"排序方式，省略時預設 price_desc"`
+		Page     int    `json:"page,omitempty"    doc:"頁碼，從 1 開始" minimum:"1"`
+		PageSize int    `json:"page_size"         doc:"每頁筆數，必填"   minimum:"1" maximum:"200"`
+	}
+}
+
 type HumaPagedSummaryOutput struct {
 	Body *model.PagedSummary
 }
@@ -221,6 +230,24 @@ func (h *PriceHumaHandler) GetEquipSummary(ctx context.Context, input *HumaEquip
 		b.SortBy = "price_desc"
 	}
 	result, err := h.svc.GetEquipSummary(b.Date, b.Category, b.SortBy, b.Page, b.PageSize)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("query failed", err)
+	}
+	return &HumaPagedSummaryOutput{Body: result}, nil
+}
+
+func (h *PriceHumaHandler) GetOtherSummary(ctx context.Context, input *HumaOtherSearchInput) (*HumaPagedSummaryOutput, error) {
+	b := input.Body
+	if b.Date == "" {
+		b.Date = twToday()
+	}
+	if b.Page < 1 {
+		b.Page = 1
+	}
+	if b.SortBy == "" {
+		b.SortBy = "price_desc"
+	}
+	result, err := h.svc.GetOtherSummary(b.Date, b.SortBy, b.Page, b.PageSize)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("query failed", err)
 	}

@@ -69,3 +69,9 @@ export function getMemberInfo() {
     return null
   }
 }
+
+export async function fetchPriceHistory(itemId, days = 7) {
+  const res = await memberFetch(`${BASE}/items/${itemId}/price-history?days=${days}`)
+  const data = await res.json()
+  return data?.data || []
+}

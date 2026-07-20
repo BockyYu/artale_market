@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PotionTable from './PotionTable'
 import Portfolio from './Portfolio'
-import { getMemberInfo, memberLogout, memberLogin, memberFetch, fetchAppConfig } from './member-api'
+import { getMemberInfo, memberLogout, memberLogin, memberFetch, fetchAppConfig, fetchPriceHistory } from './member-api'
 
 const SCROLL_API    = '/api/v1/member/scrolls/search'
 const SKILLBOOK_API = '/api/v1/member/skillbooks/search'
 const EQUIP_API     = '/api/v1/member/equips/search'
+const OTHER_API     = '/api/v1/member/others/search'
 
 function getUserID() {
   let id = localStorage.getItem('artale_uid')
@@ -94,6 +95,7 @@ export default function App() {
 
   const [showSuggestions, setShowSuggestions] = useState(false)
   const searchRef = useRef(null)
+  const tableTopRef = useRef(null)
 
   const [allItems, setAllItems] = useState([])
   const [pinnedItems, setPinnedItems] = useState([])
@@ -119,6 +121,15 @@ export default function App() {
   const [equipPageSize, setEquipPageSize] = useState(10)
   const [equipTotal, setEquipTotal] = useState(0)
   const [equipDataDate, setEquipDataDate] = useState(null)
+
+  const [otherItems, setOtherItems] = useState([])
+  const [otherSortBy, setOtherSortBy] = useState('price_desc')
+  const [otherPage, setOtherPage] = useState(1)
+  const [otherPageSize, setOtherPageSize] = useState(10)
+  const [otherTotal, setOtherTotal] = useState(0)
+  const [otherDataDate, setOtherDataDate] = useState(null)
+
+  const [historyModal, setHistoryModal] = useState(null) // { itemId, itemName } | null
 
   const fetchSummary = useCallback(async (pcts, categories, sortBy, page, pageSize) => {
     try {
@@ -178,6 +189,30 @@ export default function App() {
     }
   }, [])
 
+  const fetchOthers = useCallback(async (sortBy, page, pageSize) => {
+    try {
+      let date = localToday()
+      let result = null
+      for (let i = 0; i < 2; i++) {
+        const res = await memberFetch(OTHER_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, sort_by: sortBy, page, page_size: pageSize }),
+        })
+        result = await res.json()
+        if ((result?.total || 0) > 0) break
+        date = prevDay(date)
+      }
+      setOtherItems(result?.data || [])
+      setOtherTotal(result?.total || 0)
+      setOtherDataDate(date)
+    } catch {
+      setOtherItems([])
+      setOtherTotal(0)
+      setOtherDataDate(null)
+    }
+  }, [])
+
   const fetchSkillBooks = useCallback(async (job, sortBy, page, pageSize) => {
     try {
       const categories = job === ALL_SKILLBOOK_JOB ? [] : [job]
@@ -220,11 +255,14 @@ export default function App() {
       fetchSkillBooks(selectedJob, skillBookSortBy, skillBookPage, skillBookPageSize)
     } else if (viewMode === 'equip') {
       fetchEquips(equipFilterCategories, equipSortBy, equipPage, equipPageSize)
+    } else if (viewMode === 'other') {
+      fetchOthers(otherSortBy, otherPage, otherPageSize)
     }
-  }, [fetchSummary, fetchSkillBooks, fetchEquips,
+  }, [fetchSummary, fetchSkillBooks, fetchEquips, fetchOthers,
       filterPct, filterCategories, sortBy, viewMode, selectedJob, skillBookSortBy,
       scrollPage, scrollPageSize, skillBookPage, skillBookPageSize,
-      equipFilterCategories, equipSortBy, equipPage, equipPageSize, appConfig])
+      equipFilterCategories, equipSortBy, equipPage, equipPageSize,
+      otherSortBy, otherPage, otherPageSize, appConfig])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -239,6 +277,7 @@ export default function App() {
   useEffect(() => { setScrollPage(1) }, [filterPct, filterCategories, sortBy, pinnedItems.length, scrollPageSize])
   useEffect(() => { setSkillBookPage(1) }, [selectedJob, skillBookSortBy, skillBookPageSize])
   useEffect(() => { setEquipPage(1) }, [equipFilterCategories, equipSortBy, equipPageSize])
+  useEffect(() => { setOtherPage(1) }, [otherSortBy, otherPageSize])
 
   const fetchPinnedItemPrices = useCallback(async (items) => {
     if (items.length === 0) return
@@ -281,9 +320,11 @@ export default function App() {
     return re.test(item.name)
   }
 
+  const scrollItems = allItems.filter(i => i.item_type === 1)
+
   const suggestions = searchText.trim().length > 0
     ? [...new Set(
-        allItems
+        scrollItems
           .filter(item => itemMatchesKeyword(item, searchText.trim()))
           .map(item => item.name)
       )].slice(0, 8)
@@ -513,6 +554,7 @@ export default function App() {
   )
 
   return (
+    <>
     <div className="container">
       {/* {!member && <LoginModal onLogin={setMember} />} */}
       <header className="header">
@@ -565,6 +607,10 @@ export default function App() {
                 className={`fs-tab fs-tab--equip ${viewMode === 'equip' ? 'active' : ''}`}
                 onClick={() => setViewMode('equip')}
               >裝備</button>
+              <button
+                className={`fs-tab fs-tab--other ${viewMode === 'other' ? 'active' : ''}`}
+                onClick={() => setViewMode('other')}
+              >其他</button>
             </div>
 
             {/* 職業 panel */}
@@ -624,23 +670,40 @@ export default function App() {
                 >清除分類 ×</button>
               )}
 
-              {CATEGORY_GROUPS.map((group) => (
-                <div key={group.label}>
-                  <div className="fs-sub-label">{group.label}</div>
-                  <div className="fs-row" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
-                    {group.items.map(({ label, value }) => (
-                      <button
-                        key={value}
-                        className={`fs-btn ${filterCategories.includes(value) ? 'active' : ''}`}
-                        onClick={() => setFilterCategories(prev =>
-                          prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
-                        )}
-                      >{label}</button>
-                    ))}
+              {CATEGORY_GROUPS.map((group) => {
+                const groupValues = group.items.map(i => i.value)
+                const allSelected = groupValues.every(v => filterCategories.includes(v))
+                return (
+                  <div key={group.label}>
+                    <div className="fs-sub-label">{group.label}</div>
+                    <button
+                      className={`fs-btn ${allSelected ? 'active' : ''}`}
+                      style={{ width: '100%', marginBottom: 4 }}
+                      onClick={() => setFilterCategories(prev =>
+                        allSelected
+                          ? prev.filter(c => !groupValues.includes(c))
+                          : [...new Set([...prev, ...groupValues])]
+                      )}
+                    >全部</button>
+                    <div className="fs-row" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
+                      {group.items.map(({ label, value }) => (
+                        <button
+                          key={value}
+                          className={`fs-btn ${filterCategories.includes(value) ? 'active' : ''}`}
+                          onClick={() => setFilterCategories(prev =>
+                            prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
+                          )}
+                        >{label}</button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
+            {/* 其他 panel */}
+            <div className={`fs-panel ${viewMode === 'other' ? 'active' : ''}`}>
+            </div>
+
             {/* 裝備 panel */}
             <div className={`fs-panel ${viewMode === 'equip' ? 'active' : ''}`}>
               {equipFilterCategories.length > 0 && (
@@ -651,22 +714,35 @@ export default function App() {
                 >清除分類 ×</button>
               )}
 
-              {EQUIP_CATEGORY_GROUPS.map((group) => (
-                <div key={group.label}>
-                  <div className="fs-sub-label">{group.label}</div>
-                  <div className="fs-row" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
-                    {group.items.map(({ label, value }) => (
-                      <button
-                        key={value}
-                        className={`fs-btn ${equipFilterCategories.includes(value) ? 'active' : ''}`}
-                        onClick={() => setEquipFilterCategories(prev =>
-                          prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
-                        )}
-                      >{label}</button>
-                    ))}
+              {EQUIP_CATEGORY_GROUPS.map((group) => {
+                const groupValues = group.items.map(i => i.value)
+                const allSelected = groupValues.every(v => equipFilterCategories.includes(v))
+                return (
+                  <div key={group.label}>
+                    <div className="fs-sub-label">{group.label}</div>
+                    <button
+                      className={`fs-btn ${allSelected ? 'active' : ''}`}
+                      style={{ width: '100%', marginBottom: 4 }}
+                      onClick={() => setEquipFilterCategories(prev =>
+                        allSelected
+                          ? prev.filter(c => !groupValues.includes(c))
+                          : [...new Set([...prev, ...groupValues])]
+                      )}
+                    >全部</button>
+                    <div className="fs-row" style={{ gridTemplateColumns: `repeat(${group.cols}, 1fr)` }}>
+                      {group.items.map(({ label, value }) => (
+                        <button
+                          key={value}
+                          className={`fs-btn ${equipFilterCategories.includes(value) ? 'active' : ''}`}
+                          onClick={() => setEquipFilterCategories(prev =>
+                            prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
+                          )}
+                        >{label}</button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </aside>
@@ -678,7 +754,7 @@ export default function App() {
               <div className="search-wrapper" ref={searchRef}>
                 <input
                   className="search-input"
-                  placeholder="搜尋商品名稱"
+                  placeholder="搜尋卷軸名稱"
                   value={searchText}
                   onChange={(e) => { setSearchText(e.target.value); setShowSuggestions(true) }}
                   onFocus={() => setShowSuggestions(true)}
@@ -686,7 +762,7 @@ export default function App() {
                     if (e.key === 'Enter') {
                       const kw = searchText.trim().toLowerCase()
                       if (kw) {
-                        const matched = allItems.filter(item => {
+                        const matched = scrollItems.filter(item => {
                           const keywords = kw.split(/\s+/)
                           return keywords.every(k => {
                             const re = buildSearchRegex(k)
@@ -709,7 +785,7 @@ export default function App() {
                         className="suggestion-item"
                         onMouseDown={(e) => {
                           e.preventDefault()
-                          const item = allItems.find(i => i.name === name)
+                          const item = scrollItems.find(i => i.name === name)
                           if (item) pinItems([item])
                           setSearchText('')
                           setShowSuggestions(false)
@@ -752,6 +828,7 @@ export default function App() {
             </div>
           )}
 
+          <div ref={tableTopRef} />
           {viewMode === 'equip' ? (
             <>
               <DataDateBanner date={equipDataDate} />
@@ -789,12 +866,13 @@ export default function App() {
                           {equipSortBy === 'change_desc' ? ' ▼' : equipSortBy === 'change_asc' ? ' ▲' : ' ⇅'}
                         </span>
                       </th>
+                      <th style={{ width: 60 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {equipItems.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="empty">尚無資料</td>
+                        <td colSpan={7} className="empty">尚無資料</td>
                       </tr>
                     ) : (
                       equipItems.map((item, idx) => (
@@ -821,6 +899,9 @@ export default function App() {
                             )}
                           </td>
                           <td><ChangeCell pct={item.change_percent} /></td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button className="history-btn" onClick={() => setHistoryModal({ itemId: item.item_id, itemName: item.item_name })}>歷史資料</button>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -831,7 +912,7 @@ export default function App() {
                 page={equipPage}
                 pageSize={equipPageSize}
                 total={equipTotal}
-                onPageChange={setEquipPage}
+                onPageChange={p => { tableTopRef.current?.scrollIntoView({ behavior: 'instant' }); setEquipPage(p) }}
                 onPageSizeChange={setEquipPageSize}
               />
             </>
@@ -872,12 +953,13 @@ export default function App() {
                           {sortBy === 'change_desc' ? ' ▼' : sortBy === 'change_asc' ? ' ▲' : ' ⇅'}
                         </span>
                       </th>
+                      <th style={{ width: 60 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="empty">
+                        <td colSpan={7} className="empty">
                           {summary.length === 0 ? '尚無商品' : '找不到符合的商品'}
                         </td>
                       </tr>
@@ -908,6 +990,9 @@ export default function App() {
                               )}
                             </td>
                             <td><ChangeCell pct={item.change_percent} /></td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button className="history-btn" onClick={() => setHistoryModal({ itemId: item.item_id, itemName: item.item_name })}>歷史資料</button>
+                            </td>
                           </tr>
                         ))
                     )}
@@ -918,8 +1003,87 @@ export default function App() {
                 page={scrollPage}
                 pageSize={scrollPageSize}
                 total={pinnedItems.length > 0 ? filteredSummary.length : scrollTotal}
-                onPageChange={setScrollPage}
+                onPageChange={p => { tableTopRef.current?.scrollIntoView({ behavior: 'instant' }); setScrollPage(p) }}
                 onPageSizeChange={setScrollPageSize}
+              />
+            </>
+          ) : viewMode === 'other' ? (
+            <>
+              <DataDateBanner date={otherDataDate} />
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 36, textAlign: 'center', color: '#9ca3af' }}>#</th>
+                      <th>道具名稱</th>
+                      <th>分類</th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setOtherSortBy(s => s === 'price_desc' ? 'price_asc' : 'price_desc')}
+                      >
+                        今日價格
+                        <span className="sort-icon">{otherSortBy === 'price_desc' ? ' ▼' : otherSortBy === 'price_asc' ? ' ▲' : ' ⇅'}</span>
+                      </th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setOtherSortBy(s => s === 'yesterday_price_desc' ? 'yesterday_price_asc' : 'yesterday_price_desc')}
+                      >
+                        昨日價格
+                        <span className="sort-icon">{otherSortBy === 'yesterday_price_desc' ? ' ▼' : otherSortBy === 'yesterday_price_asc' ? ' ▲' : ' ⇅'}</span>
+                      </th>
+                      <th
+                        className="sortable-th"
+                        onClick={() => setOtherSortBy(s => s === 'change_desc' ? 'change_asc' : 'change_desc')}
+                      >
+                        漲跌
+                        <span className="sort-icon">{otherSortBy === 'change_desc' ? ' ▼' : otherSortBy === 'change_asc' ? ' ▲' : ' ⇅'}</span>
+                      </th>
+                      <th style={{ width: 60 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {otherItems.length === 0 ? (
+                      <tr><td colSpan={7} className="empty">尚無資料</td></tr>
+                    ) : (
+                      otherItems.map((item, idx) => (
+                        <tr key={item.item_id}>
+                          <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.88rem', fontWeight: 600 }}>
+                            {(otherPage - 1) * otherPageSize + idx + 1}
+                          </td>
+                          <td className="text-bold">{item.item_name}</td>
+                          <td><span className="category-tag">{item.category}</span></td>
+                          <td className={item.today_price != null ? 'text-price' : 'text-muted'}>
+                            {fmt(item.today_price)}
+                            {(item.today_updated_at || item.today_created_at) && (
+                              <div className="price-updated-at">
+                                {new Date(item.today_updated_at ?? item.today_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </td>
+                          <td className="text-muted">
+                            {fmt(item.yesterday_price)}
+                            {(item.yesterday_updated_at || item.yesterday_created_at) && (
+                              <div className="price-updated-at">
+                                {new Date(item.yesterday_updated_at ?? item.yesterday_created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </td>
+                          <td><ChangeCell pct={item.change_percent} /></td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button className="history-btn" onClick={() => setHistoryModal({ itemId: item.item_id, itemName: item.item_name })}>歷史資料</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={otherPage}
+                pageSize={otherPageSize}
+                total={otherTotal}
+                onPageChange={p => { tableTopRef.current?.scrollIntoView({ behavior: 'instant' }); setOtherPage(p) }}
+                onPageSizeChange={setOtherPageSize}
               />
             </>
           ) : (
@@ -959,12 +1123,13 @@ export default function App() {
                           {skillBookSortBy === 'change_desc' ? ' ▼' : skillBookSortBy === 'change_asc' ? ' ▲' : ' ⇅'}
                         </span>
                       </th>
+                      <th style={{ width: 60 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedSkillBooks.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="empty">尚無資料</td>
+                        <td colSpan={7} className="empty">尚無資料</td>
                       </tr>
                     ) : (
                       sortedSkillBooks.map((item, idx) => (
@@ -991,6 +1156,9 @@ export default function App() {
                               )}
                             </td>
                             <td><ChangeCell pct={item.change_percent} /></td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button className="history-btn" onClick={() => setHistoryModal({ itemId: item.item_id, itemName: item.item_name })}>歷史資料</button>
+                            </td>
                           </tr>
                         ))
                     )}
@@ -1001,7 +1169,7 @@ export default function App() {
                 page={skillBookPage}
                 pageSize={skillBookPageSize}
                 total={skillBookTotal}
-                onPageChange={setSkillBookPage}
+                onPageChange={p => { tableTopRef.current?.scrollIntoView({ behavior: 'instant' }); setSkillBookPage(p) }}
                 onPageSizeChange={setSkillBookPageSize}
               />
             </>
@@ -1011,8 +1179,146 @@ export default function App() {
       </div>}{/* activeTab === 'market' */}
 
     </div>
+
+    {historyModal && (
+      <PriceHistoryModal
+        itemId={historyModal.itemId}
+        itemName={historyModal.itemName}
+        onClose={() => setHistoryModal(null)}
+      />
+    )}
+    </>
   )
 }
+
+function PriceHistoryModal({ itemId, itemName, onClose }) {
+  const [days, setDays] = useState(7)
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)   // 初次載入
+  const [fetching, setFetching] = useState(false) // 切換天數時的背景更新
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  useEffect(() => {
+    // 已有資料時只做背景更新（不清空畫面），初次載入才顯示 loading
+    if (data.length > 0) {
+      setFetching(true)
+      fetchPriceHistory(itemId, days)
+        .then(setData)
+        .catch(() => {})
+        .finally(() => setFetching(false))
+    } else {
+      setLoading(true)
+      fetchPriceHistory(itemId, days)
+        .then(setData)
+        .catch(() => setData([]))
+        .finally(() => setLoading(false))
+    }
+  }, [itemId, days])
+
+  const rows = data.map((r, i) => {
+    const prev = data[i + 1]
+    const changePct = prev && prev.price > 0
+      ? (r.price - prev.price) / prev.price * 100
+      : null
+    return { ...r, changePct }
+  })
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        style={{ background: '#fff', borderRadius: 12, width: 1200, height: '72vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ padding: '32px 48px 28px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 36, color: '#1a1a2e' }}>{itemName}</div>
+            <div style={{ fontSize: 22, color: '#9ca3af', marginTop: 6 }}>歷史價格紀錄</div>
+          </div>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 36, cursor: 'pointer', color: '#9ca3af', lineHeight: 1, padding: '0 2px' }}>×</button>
+        </div>
+
+        <div style={{ padding: '18px 48px', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: 14, alignItems: 'center' }}>
+          {[7, 14, 30].map(d => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              style={{
+                padding: '12px 20px', borderRadius: 28, border: '1px solid',
+                borderColor: days === d ? '#4f46e5' : '#e5e7eb',
+                background: days === d ? '#4f46e5' : '#fff',
+                color: days === d ? '#fff' : '#6b7280',
+                fontSize: 22, cursor: 'pointer', fontWeight: days === d ? 600 : 400,
+                textAlign: 'center',
+              }}
+            >{d} 天</button>
+          ))}
+          <span style={{ marginLeft: 'auto', fontSize: 20, color: '#9ca3af' }}>每日最低價</span>
+        </div>
+
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 72, color: '#9ca3af', fontSize: 26 }}>載入中…</div>
+          ) : rows.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 72, color: '#9ca3af', fontSize: 26 }}>尚無歷史資料</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', opacity: fetching ? 0.5 : 1, transition: 'opacity 0.15s' }}>
+              <thead>
+                <tr style={{ background: '#f9fafb', position: 'sticky', top: 0 }}>
+                  <th style={histThStyle}>日期</th>
+                  <th style={{ ...histThStyle, textAlign: 'right' }}>最低價</th>
+                  <th style={{ ...histThStyle, textAlign: 'right' }}>更新時間</th>
+                  <th style={{ ...histThStyle, textAlign: 'right' }}>漲跌</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6', background: i === 0 ? '#f5f3ff' : 'transparent' }}>
+                    <td style={histTdStyle}>
+                      {new Date(r.recorded_date).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })}
+                      {i === 0 && (
+                        <span style={{ marginLeft: 10, fontSize: 18, color: '#7c3aed', background: '#ede9fe', padding: '3px 14px', borderRadius: 6, fontWeight: 600 }}>最新</span>
+                      )}
+                    </td>
+                    <td style={{ ...histTdStyle, textAlign: 'right', fontWeight: 700, color: '#111827' }}>
+                      {r.price.toLocaleString()}
+                    </td>
+                    <td style={{ ...histTdStyle, textAlign: 'right', color: '#9ca3af', fontSize: 22 }}>
+                      {new Date(r.updated_at || r.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td style={{ ...histTdStyle, textAlign: 'right' }}>
+                      {r.changePct == null ? (
+                        <span style={{ color: '#d1d5db' }}>—</span>
+                      ) : r.changePct > 0 ? (
+                        <span style={{ color: '#ef4444' }}>▲ {Math.abs(r.changePct).toFixed(1)}%</span>
+                      ) : r.changePct < 0 ? (
+                        <span style={{ color: '#22c55e' }}>▼ {Math.abs(r.changePct).toFixed(1)}%</span>
+                      ) : (
+                        <span style={{ color: '#9ca3af' }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div style={{ padding: '20px 48px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ border: 'none', background: '#ef4444', fontSize: 22, cursor: 'pointer', color: '#fff', fontWeight: 700, padding: '10px 28px', borderRadius: 8, letterSpacing: 1 }}>關閉</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const histThStyle = { padding: '16px 48px', textAlign: 'left', fontSize: 22, color: '#6b7280', fontWeight: 600 }
+const histTdStyle = { padding: '20px 48px', fontSize: 26, color: '#374151' }
 
 function LoginModal({ onLogin }) {
   const [form, setForm] = useState({ username: '', password: '' })

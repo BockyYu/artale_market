@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strconv"
 	"time"
 
 	"artale_market/dto"
@@ -141,6 +142,27 @@ func (h *PriceHandler) GetLatestBatch(c *gin.Context) {
 		result[r.ItemID] = r.Price
 	}
 	respOK(c, gin.H{"data": result})
+}
+
+// GetMemberHistory GET /member/items/:id/price-history?days=7
+// 回傳最近 N 天（預設 7，最多 30）的每日最低價記錄。
+func (h *PriceHandler) GetMemberHistory(c *gin.Context) {
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "7"))
+	if days < 1 {
+		days = 7
+	}
+	if days > 30 {
+		days = 30
+	}
+	records, err := h.svc.GetHistory(parseID(c))
+	if err != nil {
+		respNotFound(c, err)
+		return
+	}
+	if len(records) > days {
+		records = records[:days]
+	}
+	respOK(c, gin.H{"data": records})
 }
 
 func (h *PriceHandler) GetLatest(c *gin.Context) {
