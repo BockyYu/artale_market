@@ -129,6 +129,11 @@ export default function App() {
   const [otherTotal, setOtherTotal] = useState(0)
   const [otherDataDate, setOtherDataDate] = useState(null)
 
+  const [skillBookSearch, setSkillBookSearch] = useState('')
+  const [equipSearch, setEquipSearch] = useState('')
+  const [otherSearch, setOtherSearch] = useState('')
+  const [otherFilterTypes, setOtherFilterTypes] = useState([])
+
   const [historyModal, setHistoryModal] = useState(null) // { itemId, itemName } | null
 
   const fetchSummary = useCallback(async (pcts, categories, sortBy, page, pageSize) => {
@@ -165,7 +170,7 @@ export default function App() {
     }
   }, [])
 
-  const fetchEquips = useCallback(async (categories, sortBy, page, pageSize) => {
+  const fetchEquips = useCallback(async (categories, name, sortBy, page, pageSize) => {
     try {
       let date = localToday()
       let result = null
@@ -173,7 +178,7 @@ export default function App() {
         const res = await memberFetch(EQUIP_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, category: categories, sort_by: sortBy, page, page_size: pageSize }),
+          body: JSON.stringify({ date, category: categories, name: name || undefined, sort_by: sortBy, page, page_size: pageSize }),
         })
         result = await res.json()
         if ((result?.total || 0) > 0) break
@@ -189,7 +194,7 @@ export default function App() {
     }
   }, [])
 
-  const fetchOthers = useCallback(async (sortBy, page, pageSize) => {
+  const fetchOthers = useCallback(async (types, name, sortBy, page, pageSize) => {
     try {
       let date = localToday()
       let result = null
@@ -197,7 +202,7 @@ export default function App() {
         const res = await memberFetch(OTHER_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, sort_by: sortBy, page, page_size: pageSize }),
+          body: JSON.stringify({ date, types: types.length > 0 ? types : undefined, name: name || undefined, sort_by: sortBy, page, page_size: pageSize }),
         })
         result = await res.json()
         if ((result?.total || 0) > 0) break
@@ -213,7 +218,7 @@ export default function App() {
     }
   }, [])
 
-  const fetchSkillBooks = useCallback(async (job, sortBy, page, pageSize) => {
+  const fetchSkillBooks = useCallback(async (job, name, sortBy, page, pageSize) => {
     try {
       const categories = job === ALL_SKILLBOOK_JOB ? [] : [job]
       let date = localToday()
@@ -222,7 +227,7 @@ export default function App() {
         const res = await memberFetch(SKILLBOOK_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, category: categories, sort_by: sortBy, page, page_size: pageSize }),
+          body: JSON.stringify({ date, category: categories, name: name || undefined, sort_by: sortBy, page, page_size: pageSize }),
         })
         result = await res.json()
         if ((result?.total || 0) > 0) break
@@ -252,17 +257,18 @@ export default function App() {
     if (viewMode === 'scroll') {
       fetchSummary(filterPct, filterCategories, sortBy, scrollPage, scrollPageSize)
     } else if (viewMode === 'skillbook') {
-      fetchSkillBooks(selectedJob, skillBookSortBy, skillBookPage, skillBookPageSize)
+      fetchSkillBooks(selectedJob, skillBookSearch, skillBookSortBy, skillBookPage, skillBookPageSize)
     } else if (viewMode === 'equip') {
-      fetchEquips(equipFilterCategories, equipSortBy, equipPage, equipPageSize)
+      fetchEquips(equipFilterCategories, equipSearch, equipSortBy, equipPage, equipPageSize)
     } else if (viewMode === 'other') {
-      fetchOthers(otherSortBy, otherPage, otherPageSize)
+      fetchOthers(otherFilterTypes, otherSearch, otherSortBy, otherPage, otherPageSize)
     }
   }, [fetchSummary, fetchSkillBooks, fetchEquips, fetchOthers,
       filterPct, filterCategories, sortBy, viewMode, selectedJob, skillBookSortBy,
       scrollPage, scrollPageSize, skillBookPage, skillBookPageSize,
       equipFilterCategories, equipSortBy, equipPage, equipPageSize,
-      otherSortBy, otherPage, otherPageSize, appConfig])
+      otherSortBy, otherPage, otherPageSize,
+      skillBookSearch, equipSearch, otherSearch, otherFilterTypes, appConfig])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -275,9 +281,9 @@ export default function App() {
   }, [])
 
   useEffect(() => { setScrollPage(1) }, [filterPct, filterCategories, sortBy, pinnedItems.length, scrollPageSize])
-  useEffect(() => { setSkillBookPage(1) }, [selectedJob, skillBookSortBy, skillBookPageSize])
-  useEffect(() => { setEquipPage(1) }, [equipFilterCategories, equipSortBy, equipPageSize])
-  useEffect(() => { setOtherPage(1) }, [otherSortBy, otherPageSize])
+  useEffect(() => { setSkillBookPage(1) }, [selectedJob, skillBookSearch, skillBookSortBy, skillBookPageSize])
+  useEffect(() => { setEquipPage(1) }, [equipFilterCategories, equipSearch, equipSortBy, equipPageSize])
+  useEffect(() => { setOtherPage(1) }, [otherSearch, otherFilterTypes, otherSortBy, otherPageSize])
 
   const fetchPinnedItemPrices = useCallback(async (items) => {
     if (items.length === 0) return
@@ -702,6 +708,29 @@ export default function App() {
             </div>
             {/* 其他 panel */}
             <div className={`fs-panel ${viewMode === 'other' ? 'active' : ''}`}>
+              {otherFilterTypes.length > 0 && (
+                <button
+                  className="fs-btn fs-btn-clear"
+                  style={{ width: '100%', marginBottom: 4 }}
+                  onClick={() => setOtherFilterTypes([])}
+                >清除分類 ×</button>
+              )}
+              <div className="fs-row" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                {[
+                  { label: '消耗', value: 3 },
+                  { label: '素材', value: 2 },
+                  { label: '商城道具', value: 5 },
+                  { label: '全職業', value: 7 },
+                ].map(({ label, value }) => (
+                  <button
+                    key={value}
+                    className={`fs-btn ${otherFilterTypes.includes(value) ? 'active' : ''}`}
+                    onClick={() => setOtherFilterTypes(prev =>
+                      prev.includes(value) ? prev.filter(t => t !== value) : [...prev, value]
+                    )}
+                  >{label}</button>
+                ))}
+              </div>
             </div>
 
             {/* 裝備 panel */}
@@ -750,6 +779,30 @@ export default function App() {
         <div className="main-content">
 
           <div className="filter-bar">
+            {viewMode === 'skillbook' && (
+              <input
+                className="search-input"
+                placeholder="搜尋技能書名稱"
+                value={skillBookSearch}
+                onChange={e => setSkillBookSearch(e.target.value)}
+              />
+            )}
+            {viewMode === 'equip' && (
+              <input
+                className="search-input"
+                placeholder="搜尋裝備名稱"
+                value={equipSearch}
+                onChange={e => setEquipSearch(e.target.value)}
+              />
+            )}
+            {viewMode === 'other' && (
+              <input
+                className="search-input"
+                placeholder="搜尋道具名稱"
+                value={otherSearch}
+                onChange={e => setOtherSearch(e.target.value)}
+              />
+            )}
             {viewMode === 'scroll' && (
               <div className="search-wrapper" ref={searchRef}>
                 <input

@@ -14,9 +14,9 @@ type ItemRepository interface {
 	FindWithFilters(pcts []int, categories []string) ([]model.Item, error)
 	FindPage(pcts []int, categories []string, itemTypes []int, sortBy string, date string, page, pageSize int) ([]model.Item, int64, error)
 	FindScrollPage(pcts []int, categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
-	FindSkillBookPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
-	FindEquipPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
-	FindOtherPage(sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
+	FindSkillBookPage(categories []string, name, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
+	FindEquipPage(categories []string, name, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
+	FindOtherPage(types []model.ItemType, name, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error)
 	FindByID(id uint) (*model.Item, error)
 	FindByName(name string) (*model.Item, error)
 	FindByIDSummary(id uint, today, yesterday, threeDaysAgo string) (*model.PriceSummary, error)
@@ -220,12 +220,15 @@ func (r *itemRepo) FindScrollPage(pcts []int, categories []string, sortBy string
 	return summaries, total, q.Scan(&summaries).Error
 }
 
-func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
+func (r *itemRepo) FindSkillBookPage(categories []string, name, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
 	var total int64
 	countQ := r.db.Model(&model.Item{}).Where("item_type = ? AND is_hidden = false", model.ItemTypeSkillBook).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
 	if len(categories) > 0 {
 		countQ = countQ.Where("category IN ?", categories)
+	}
+	if name != "" {
+		countQ = countQ.Where("items.name ILIKE ?", "%"+name+"%")
 	}
 	if err := countQ.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -239,6 +242,9 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 
 	if len(categories) > 0 {
 		q = q.Where("items.category IN ?", categories)
+	}
+	if name != "" {
+		q = q.Where("items.name ILIKE ?", "%"+name+"%")
 	}
 
 	switch sortBy {
@@ -268,12 +274,15 @@ func (r *itemRepo) FindSkillBookPage(categories []string, sortBy string, today, 
 	return summaries, total, q.Scan(&summaries).Error
 }
 
-func (r *itemRepo) FindEquipPage(categories []string, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
+func (r *itemRepo) FindEquipPage(categories []string, name, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
 	var total int64
 	countQ := r.db.Model(&model.Item{}).Where("item_type = ? AND is_hidden = false", model.ItemTypeEquip).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
 	if len(categories) > 0 {
 		countQ = countQ.Where("category IN ?", categories)
+	}
+	if name != "" {
+		countQ = countQ.Where("items.name ILIKE ?", "%"+name+"%")
 	}
 	if err := countQ.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -287,6 +296,9 @@ func (r *itemRepo) FindEquipPage(categories []string, sortBy string, today, yest
 
 	if len(categories) > 0 {
 		q = q.Where("items.category IN ?", categories)
+	}
+	if name != "" {
+		q = q.Where("items.name ILIKE ?", "%"+name+"%")
 	}
 
 	switch sortBy {
@@ -312,13 +324,20 @@ func (r *itemRepo) FindEquipPage(categories []string, sortBy string, today, yest
 	return summaries, total, q.Scan(&summaries).Error
 }
 
-func (r *itemRepo) FindOtherPage(sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
-	otherTypes := []model.ItemType{model.ItemTypeMaterial, model.ItemTypeConsume, model.ItemTypePoints, model.ItemTypeEvent}
+func (r *itemRepo) FindOtherPage(types []model.ItemType, name, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
+	allOther := []model.ItemType{model.ItemTypeMaterial, model.ItemTypeConsume, model.ItemTypePoints, model.ItemTypeEvent}
+	activeTypes := allOther
+	if len(types) > 0 {
+		activeTypes = types
+	}
 	var total int64
-	if err := r.db.Model(&model.Item{}).
-		Where("item_type IN ? AND is_hidden = false", otherTypes).
-		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today).
-		Count(&total).Error; err != nil {
+	countQ := r.db.Model(&model.Item{}).
+		Where("item_type IN ? AND is_hidden = false", activeTypes).
+		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ?", today)
+	if name != "" {
+		countQ = countQ.Where("items.name ILIKE ?", "%"+name+"%")
+	}
+	if err := countQ.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -326,7 +345,10 @@ func (r *itemRepo) FindOtherPage(sortBy string, today, yesterday, threeDaysAgo s
 		Select(`items.id AS item_id, items.name AS item_name, items.percentage AS item_percentage, items.item_type AS item_type, items.category AS category, items.description AS description, pr_today.price AS today_price, pr_today.created_at AS today_created_at, pr_today.updated_at AS today_updated_at, pr_yesterday.price AS yesterday_price, pr_yesterday.created_at AS yesterday_created_at, pr_yesterday.updated_at AS yesterday_updated_at, pr_3days.price AS three_days_ago_price, (pr_today.price - pr_yesterday.price) / NULLIF(pr_yesterday.price, 0) AS change_pct`).
 		Joins("JOIN price_records pr_today ON pr_today.item_id = items.id AND pr_today.recorded_date = ? LEFT JOIN price_records pr_yesterday ON pr_yesterday.item_id = items.id AND pr_yesterday.recorded_date = ? LEFT JOIN price_records pr_3days ON pr_3days.item_id = items.id AND pr_3days.recorded_date = ?",
 			today, yesterday, threeDaysAgo).
-		Where("items.item_type IN ? AND items.is_hidden = false", otherTypes)
+		Where("items.item_type IN ? AND items.is_hidden = false", activeTypes)
+	if name != "" {
+		q = q.Where("items.name ILIKE ?", "%"+name+"%")
+	}
 
 	switch sortBy {
 	case "price_asc":

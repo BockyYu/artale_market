@@ -59,7 +59,7 @@ func (h *PriceHandler) GetSkillBookSummary(c *gin.Context) {
 		body.SortBy = "price_desc"
 	}
 
-	result, err := h.svc.GetSkillBookSummary(body.Date, body.Category, body.SortBy, body.Page, body.PageSize)
+	result, err := h.svc.GetSkillBookSummary(body.Date, body.Category, "", body.SortBy, body.Page, body.PageSize)
 	if err != nil {
 		respInternal(c, err)
 		return
@@ -83,7 +83,7 @@ func (h *PriceHandler) GetEquipSummary(c *gin.Context) {
 		body.SortBy = "price_desc"
 	}
 
-	result, err := h.svc.GetEquipSummary(body.Date, body.Category, body.SortBy, body.Page, body.PageSize)
+	result, err := h.svc.GetEquipSummary(body.Date, body.Category, "", body.SortBy, body.Page, body.PageSize)
 	if err != nil {
 		respInternal(c, err)
 		return

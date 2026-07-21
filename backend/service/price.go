@@ -12,9 +12,9 @@ import (
 type PriceService interface {
 	GetSummary(date string, pcts []int, categories []string, itemTypes []int, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	GetScrollSummary(date string, pcts []int, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
-	GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
-	GetEquipSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
-	GetOtherSummary(date string, sortBy string, page, pageSize int) (*model.PagedSummary, error)
+	GetSkillBookSummary(date string, categories []string, name, sortBy string, page, pageSize int) (*model.PagedSummary, error)
+	GetEquipSummary(date string, categories []string, name, sortBy string, page, pageSize int) (*model.PagedSummary, error)
+	GetOtherSummary(date string, types []int, name, sortBy string, page, pageSize int) (*model.PagedSummary, error)
 	Record(itemID uint, price float64, date string, source string) (*model.PriceRecord, error)
 	GetLatest(itemID uint) (*model.PriceRecord, error)
 	GetLatestBatch(itemIDs []uint) ([]model.PriceRecord, error)
@@ -138,7 +138,7 @@ func (svc *priceService) GetScrollSummary(date string, pcts []int, categories []
 	return &model.PagedSummary{Data: summaries, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
-func (svc *priceService) GetSkillBookSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
+func (svc *priceService) GetSkillBookSummary(date string, categories []string, name, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
 	ref, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		ref = time.Now()
@@ -147,7 +147,7 @@ func (svc *priceService) GetSkillBookSummary(date string, categories []string, s
 	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
 	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
 
-	summaries, total, err := svc.itemRepo.FindSkillBookPage(categories, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
+	summaries, total, err := svc.itemRepo.FindSkillBookPage(categories, name, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (svc *priceService) GetSkillBookSummary(date string, categories []string, s
 	}, nil
 }
 
-func (svc *priceService) GetEquipSummary(date string, categories []string, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
+func (svc *priceService) GetEquipSummary(date string, categories []string, name, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
 	ref, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		ref = time.Now()
@@ -178,7 +178,7 @@ func (svc *priceService) GetEquipSummary(date string, categories []string, sortB
 	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
 	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
 
-	summaries, total, err := svc.itemRepo.FindEquipPage(categories, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
+	summaries, total, err := svc.itemRepo.FindEquipPage(categories, name, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (svc *priceService) GetEquipSummary(date string, categories []string, sortB
 	return &model.PagedSummary{Data: summaries, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
-func (svc *priceService) GetOtherSummary(date string, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
+func (svc *priceService) GetOtherSummary(date string, types []int, name, sortBy string, page, pageSize int) (*model.PagedSummary, error) {
 	ref, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		ref = time.Now()
@@ -204,7 +204,11 @@ func (svc *priceService) GetOtherSummary(date string, sortBy string, page, pageS
 	yesterday := ref.AddDate(0, 0, -1).Format("2006-01-02")
 	threeDaysAgo := ref.AddDate(0, 0, -3).Format("2006-01-02")
 
-	summaries, total, err := svc.itemRepo.FindOtherPage(sortBy, today, yesterday, threeDaysAgo, page, pageSize)
+	modelTypes := make([]model.ItemType, len(types))
+	for i, t := range types {
+		modelTypes[i] = model.ItemType(t)
+	}
+	summaries, total, err := svc.itemRepo.FindOtherPage(modelTypes, name, sortBy, today, yesterday, threeDaysAgo, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
