@@ -591,7 +591,9 @@ export default function App() {
                 setMember(null)
               }}>登出</button>
             </div>
-          ) : null}
+          ) : (
+            <button className="member-login-btn" onClick={() => navigate('/login')}>會員登入</button>
+          )}
         </div>
       </header>
 
@@ -604,7 +606,7 @@ export default function App() {
               <button
                 className={`fs-tab fs-tab--skillbook ${viewMode === 'skillbook' ? 'active' : ''}`}
                 onClick={() => setViewMode('skillbook')}
-              >職業技能書</button>
+              >技能書</button>
               <button
                 className={`fs-tab fs-tab--scroll ${viewMode === 'scroll' ? 'active' : ''}`}
                 onClick={() => setViewMode('scroll')}
@@ -1243,20 +1245,18 @@ export default function App() {
         itemName={historyModal.itemName}
         onClose={() => setHistoryModal(null)}
         isMember={!!member}
-        onMemberLogin={setMember}
       />
     )}
     </>
   )
 }
 
-function PriceHistoryModal({ itemId, itemName, onClose, isMember, onMemberLogin }) {
+function PriceHistoryModal({ itemId, itemName, onClose, isMember }) {
+  const navigate = useNavigate()
   const [days, setDays] = useState(7)
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)   // 初次載入
   const [fetching, setFetching] = useState(false) // 切換天數時的背景更新
-  const [showLogin, setShowLogin] = useState(false)
-  const [pendingDays, setPendingDays] = useState(null)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -1313,7 +1313,7 @@ function PriceHistoryModal({ itemId, itemName, onClose, isMember, onMemberLogin 
               <button
                 key={d}
                 onClick={() => {
-                  if (locked) { setPendingDays(d); setShowLogin(true) }
+                  if (locked) { onClose(); navigate('/login') }
                   else setDays(d)
                 }}
                 title={locked ? '登入會員後可查看更多天數' : undefined}
@@ -1391,16 +1391,6 @@ function PriceHistoryModal({ itemId, itemName, onClose, isMember, onMemberLogin 
         </div>
       </div>
 
-      {showLogin && (
-        <LoginModal
-          onLogin={m => {
-            onMemberLogin(m)
-            if (pendingDays) { setDays(pendingDays); setPendingDays(null) }
-            setShowLogin(false)
-          }}
-          onCancel={() => { setShowLogin(false); setPendingDays(null) }}
-        />
-      )}
     </div>
   )
 }

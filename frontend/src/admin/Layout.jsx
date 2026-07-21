@@ -40,7 +40,6 @@ export default function Layout() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>後台管理</h2>
-          <p>{user?.username} · {user?.role}</p>
         </div>
         <nav className="sidebar-nav">
           {NAV.map(n => (
@@ -53,13 +52,16 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <button className="btn-logout" onClick={handleLogout}>登出</button>
-        </div>
       </aside>
-      <main className="main-content">
-        <Outlet />
-      </main>
+      <div className="admin-right">
+        <header className="admin-topbar">
+          <span className="admin-topbar-user">{user?.username} / {user?.role}</span>
+          <button className="btn-logout" onClick={handleLogout}>登出</button>
+        </header>
+        <main className="main-content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

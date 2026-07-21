@@ -643,8 +643,6 @@ body {
   width: 320px;
   flex-shrink: 0;
   background: #eeedf0;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
   padding: 14px 12px;
   display: flex;
   flex-direction: column;
@@ -1126,4 +1124,30 @@ body {
   height: 1px;
   background: #cccbd8;
   margin: 4px 0;
+}
+
+/* ── RWD ── */
+@media (max-width: 1400px) {
+  .sidebar { width: 270px; }
+  .container { padding: 20px 24px; }
+}
+
+@media (max-width: 1200px) {
+  html { font-size: 16px; }
+  .sidebar { width: 230px; }
+  .container { padding: 16px 18px; }
+  .container th, .container td { font-size: 16px; padding: 10px 12px; }
+  .fs-btn { font-size: 15px; }
+}
+
+@media (max-width: 1024px) {
+  html { font-size: 14px; }
+  .sidebar { width: 190px; }
+  .container { padding: 12px 14px; }
+  .container th, .container td { font-size: 14px; padding: 8px 10px; }
+  .main-layout { gap: 10px; }
+  .header { padding: 14px 0; }
+  .header-left h1 { font-size: 1.3rem; }
+  .fs-btn { font-size: 13px; padding: 4px 3px; }
+  .sidebar-title { font-size: 16px; }
 }

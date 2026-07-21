@@ -1,6 +1,6 @@
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; font-weight: 500; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; font-weight: 500; background: #ffffff; }
 
 /* ── Login ── */
 .login-page {
@@ -75,7 +75,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background: #f8f9fb;
 }
 .sidebar {
   width: 220px;
@@ -85,6 +84,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+}
+.admin-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.admin-topbar-user {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
 }
 .sidebar-header {
   padding: 24px 20px 20px;
@@ -123,13 +143,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
 }
 .nav-item:hover { background: #f3f4f6; color: #1a1a2e; }
 .nav-item.active { background: #4f46e5; color: #fff; }
-.sidebar-footer {
-  padding: 16px 12px;
-  border-top: 1px solid #e5e7eb;
-}
 .btn-logout {
-  width: 100%;
-  padding: 9px;
+  padding: 6px 14px;
   background: transparent;
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -138,6 +153,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
   font-weight: 600;
   cursor: pointer;
   transition: background .15s, color .15s;
+  white-space: nowrap;
 }
 .btn-logout:hover { background: #f3f4f6; color: #1a1a2e; }
 
@@ -145,7 +161,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
 .main-content {
   flex: 1;
   padding: 32px;
-  overflow-y: auto;
+  background: #f8f9fb;
 }
 .page-header {
   display: flex;
@@ -331,4 +347,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
   text-align: center;
   color: #9ca3af;
   padding: 40px;
+}
+
+/* ── RWD ── */
+@media (max-width: 1200px) {
+  .sidebar { width: 180px; }
+  .admin-layout .sidebar-header { padding: 18px 14px 14px; }
+  .main-content { padding: 20px; }
+  .admin-topbar { padding: 10px 18px; }
+  .admin-layout th, .admin-layout td { font-size: 14px; padding: 9px 12px; }
+}
+
+@media (max-width: 1024px) {
+  .sidebar { width: 150px; }
+  .admin-layout .sidebar-header h2 { font-size: 13px; }
+  .main-content { padding: 14px; }
+  .admin-topbar { padding: 8px 14px; gap: 10px; }
+  .admin-layout th, .admin-layout td { font-size: 13px; padding: 7px 10px; }
+  .nav-item { font-size: 12px; padding: 8px 8px; }
+  .page-header h1 { font-size: 16px; }
 }

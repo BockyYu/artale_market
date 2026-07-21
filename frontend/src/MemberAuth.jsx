@@ -81,15 +81,14 @@ export default function MemberAuth() {
         ) : (
           <div style={styles.devNotice}>
             <p style={styles.devIcon}>🚧</p>
-            <p style={styles.devTitle}>Registration Unavailable</p>
+            <p style={styles.devTitle}>註冊功能請聯繫開發人員</p>
             <p style={styles.devDesc}>
-              Member registration is not available during the development phase.
-              Please check back later.
+              目前處於開發階段，暫不開放。請稍後再試。
             </p>
           </div>
         )}
 
-        <button style={styles.backLink} onClick={() => navigate('/')}>← 回到市場</button>
+        <button style={{ ...styles.backLink, fontSize: 15, fontWeight: 600 }} onClick={() => navigate('/')}>訪客登入</button>
       </div>
     </div>
   )
@@ -142,15 +141,16 @@ const styles = {
     padding: '10px 0',
     background: 'none',
     border: 'none',
+    borderBottom: '2px solid transparent',
     fontSize: 15,
     fontWeight: 600,
     color: '#9ca3af',
     cursor: 'pointer',
+    marginBottom: -2,
   },
   tabActive: {
     color: '#4f46e5',
     borderBottom: '2px solid #4f46e5',
-    marginBottom: -2,
   },
   error: {
     background: '#fef2f2',
