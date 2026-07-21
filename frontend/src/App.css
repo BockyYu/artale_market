@@ -1025,6 +1025,36 @@ body {
 .fs-tab--equip.active     { background: #0f766e; }
 .fs-tab--other.active     { background: #6b21a8; }
 
+/* ── Member badge (speech bubble) ── */
+.member-badge {
+  position: absolute;
+  top: -20px;
+  right: -10px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #7c3aed;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.member-badge::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  right: 10px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #7c3aed;
+}
+.member-badge.locked {
+  background: #c4b5fd;
+}
+.member-badge.locked::after {
+  border-top-color: #c4b5fd;
+}
+
 .fs-panel {
   display: none;
   flex-direction: column;

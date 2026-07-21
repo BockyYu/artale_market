@@ -1242,17 +1242,21 @@ export default function App() {
         itemId={historyModal.itemId}
         itemName={historyModal.itemName}
         onClose={() => setHistoryModal(null)}
+        isMember={!!member}
+        onMemberLogin={setMember}
       />
     )}
     </>
   )
 }
 
-function PriceHistoryModal({ itemId, itemName, onClose }) {
+function PriceHistoryModal({ itemId, itemName, onClose, isMember, onMemberLogin }) {
   const [days, setDays] = useState(7)
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)   // 初次載入
   const [fetching, setFetching] = useState(false) // 切換天數時的背景更新
+  const [showLogin, setShowLogin] = useState(false)
+  const [pendingDays, setPendingDays] = useState(null)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -1301,20 +1305,36 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
         </div>
 
         <div style={{ padding: '18px 48px', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: 14, alignItems: 'center' }}>
-          {[7, 14, 30].map(d => (
-            <button
-              key={d}
-              onClick={() => setDays(d)}
-              style={{
-                padding: '12px 20px', borderRadius: 28, border: '1px solid',
-                borderColor: days === d ? '#4f46e5' : '#e5e7eb',
-                background: days === d ? '#4f46e5' : '#fff',
-                color: days === d ? '#fff' : '#6b7280',
-                fontSize: 13, cursor: 'pointer', fontWeight: days === d ? 600 : 400,
-                textAlign: 'center',
-              }}
-            >{d} 天</button>
-          ))}
+          {[7, 14, 30].map(d => {
+            const needsMember = d > 7
+            const locked = needsMember && !isMember
+            const isActive = days === d
+            return (
+              <button
+                key={d}
+                onClick={() => {
+                  if (locked) { setPendingDays(d); setShowLogin(true) }
+                  else setDays(d)
+                }}
+                title={locked ? '登入會員後可查看更多天數' : undefined}
+                style={{
+                  position: 'relative',
+                  padding: '12px 20px', borderRadius: 28, border: '1px solid',
+                  borderColor: locked ? '#e5e7eb' : isActive ? '#4f46e5' : '#e5e7eb',
+                  background: locked ? '#f9fafb' : isActive ? '#4f46e5' : '#fff',
+                  color: locked ? '#c4b8d8' : isActive ? '#fff' : '#6b7280',
+                  fontSize: 13, cursor: 'pointer',
+                  fontWeight: isActive ? 600 : 400,
+                  textAlign: 'center',
+                }}
+              >
+                {d} 天
+                {needsMember && (
+                  <span className={`member-badge${locked ? ' locked' : ''}`}>會員</span>
+                )}
+              </button>
+            )
+          })}
           <span style={{ marginLeft: 'auto', fontSize: 20, color: '#9ca3af' }}>每日最低價</span>
         </div>
 
@@ -1370,6 +1390,17 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
           <button onClick={onClose} style={{ border: 'none', background: '#ef4444', fontSize: 13, cursor: 'pointer', color: '#fff', fontWeight: 700, padding: '6px 18px', borderRadius: 6, letterSpacing: 1 }}>關閉</button>
         </div>
       </div>
+
+      {showLogin && (
+        <LoginModal
+          onLogin={m => {
+            onMemberLogin(m)
+            if (pendingDays) { setDays(pendingDays); setPendingDays(null) }
+            setShowLogin(false)
+          }}
+          onCancel={() => { setShowLogin(false); setPendingDays(null) }}
+        />
+      )}
     </div>
   )
 }
@@ -1377,7 +1408,7 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
 const histThStyle = { padding: '8px 24px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 600 }
 const histTdStyle = { padding: '10px 24px', fontSize: 14, color: '#374151' }
 
-function LoginModal({ onLogin }) {
+function LoginModal({ onLogin, onCancel }) {
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -1427,6 +1458,11 @@ function LoginModal({ onLogin }) {
           <button className="login-modal-btn" type="submit" disabled={loading}>
             {loading ? '登入中...' : '登入'}
           </button>
+          {onCancel && (
+            <button type="button" onClick={onCancel} style={{ width: '100%', marginTop: 8, padding: '10px', border: '1px solid #e5e7eb', borderRadius: 8, background: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 14 }}>
+              取消
+            </button>
+          )}
         </form>
       </div>
     </div>
