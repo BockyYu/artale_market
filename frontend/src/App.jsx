@@ -715,12 +715,16 @@ export default function App() {
                   onClick={() => setOtherFilterTypes([])}
                 >清除分類 ×</button>
               )}
-              <div className="fs-row" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <button
+                className={`fs-btn ${otherFilterTypes.length === 0 ? 'active' : ''}`}
+                style={{ width: '100%', marginBottom: 4 }}
+                onClick={() => setOtherFilterTypes([])}
+              >全部</button>
+              <div className="fs-row" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
                 {[
                   { label: '消耗', value: 3 },
                   { label: '素材', value: 2 },
-                  { label: '商城道具', value: 5 },
-                  { label: '全職業', value: 7 },
+                  { label: '商城', value: 5 },
                 ].map(({ label, value }) => (
                   <button
                     key={value}
@@ -1290,10 +1294,10 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
       >
         <div style={{ padding: '32px 48px 28px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 36, color: '#1a1a2e' }}>{itemName}</div>
-            <div style={{ fontSize: 22, color: '#9ca3af', marginTop: 6 }}>歷史價格紀錄</div>
+            <div style={{ fontWeight: 700, fontSize: 20, color: '#1a1a2e' }}>{itemName}</div>
+            <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>歷史價格紀錄</div>
           </div>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 36, cursor: 'pointer', color: '#9ca3af', lineHeight: 1, padding: '0 2px' }}>×</button>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#9ca3af', lineHeight: 1, padding: '0 2px' }}>×</button>
         </div>
 
         <div style={{ padding: '18px 48px', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -1306,7 +1310,7 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
                 borderColor: days === d ? '#4f46e5' : '#e5e7eb',
                 background: days === d ? '#4f46e5' : '#fff',
                 color: days === d ? '#fff' : '#6b7280',
-                fontSize: 22, cursor: 'pointer', fontWeight: days === d ? 600 : 400,
+                fontSize: 13, cursor: 'pointer', fontWeight: days === d ? 600 : 400,
                 textAlign: 'center',
               }}
             >{d} 天</button>
@@ -1316,9 +1320,9 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
 
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: 72, color: '#9ca3af', fontSize: 26 }}>載入中…</div>
+            <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af', fontSize: 14 }}>載入中…</div>
           ) : rows.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 72, color: '#9ca3af', fontSize: 26 }}>尚無歷史資料</div>
+            <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af', fontSize: 14 }}>尚無歷史資料</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', opacity: fetching ? 0.5 : 1, transition: 'opacity 0.15s' }}>
               <thead>
@@ -1335,13 +1339,13 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
                     <td style={histTdStyle}>
                       {new Date(r.recorded_date).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })}
                       {i === 0 && (
-                        <span style={{ marginLeft: 10, fontSize: 18, color: '#7c3aed', background: '#ede9fe', padding: '3px 14px', borderRadius: 6, fontWeight: 600 }}>最新</span>
+                        <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', background: '#ede9fe', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>最新</span>
                       )}
                     </td>
                     <td style={{ ...histTdStyle, textAlign: 'right', fontWeight: 700, color: '#111827' }}>
                       {r.price.toLocaleString()}
                     </td>
-                    <td style={{ ...histTdStyle, textAlign: 'right', color: '#9ca3af', fontSize: 22 }}>
+                    <td style={{ ...histTdStyle, textAlign: 'right', color: '#9ca3af' }}>
                       {new Date(r.updated_at || r.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td style={{ ...histTdStyle, textAlign: 'right' }}>
@@ -1363,15 +1367,15 @@ function PriceHistoryModal({ itemId, itemName, onClose }) {
         </div>
 
         <div style={{ padding: '20px 48px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ border: 'none', background: '#ef4444', fontSize: 22, cursor: 'pointer', color: '#fff', fontWeight: 700, padding: '10px 28px', borderRadius: 8, letterSpacing: 1 }}>關閉</button>
+          <button onClick={onClose} style={{ border: 'none', background: '#ef4444', fontSize: 13, cursor: 'pointer', color: '#fff', fontWeight: 700, padding: '6px 18px', borderRadius: 6, letterSpacing: 1 }}>關閉</button>
         </div>
       </div>
     </div>
   )
 }
 
-const histThStyle = { padding: '16px 48px', textAlign: 'left', fontSize: 22, color: '#6b7280', fontWeight: 600 }
-const histTdStyle = { padding: '20px 48px', fontSize: 26, color: '#374151' }
+const histThStyle = { padding: '8px 24px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 600 }
+const histTdStyle = { padding: '10px 24px', fontSize: 14, color: '#374151' }
 
 function LoginModal({ onLogin }) {
   const [form, setForm] = useState({ username: '', password: '' })

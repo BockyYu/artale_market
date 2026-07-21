@@ -325,7 +325,7 @@ func (r *itemRepo) FindEquipPage(categories []string, name, sortBy string, today
 }
 
 func (r *itemRepo) FindOtherPage(types []model.ItemType, name, sortBy string, today, yesterday, threeDaysAgo string, page, pageSize int) ([]model.PriceSummary, int64, error) {
-	allOther := []model.ItemType{model.ItemTypeMaterial, model.ItemTypeConsume, model.ItemTypePoints, model.ItemTypeEvent}
+	allOther := []model.ItemType{model.ItemTypeMaterial, model.ItemTypeConsume, model.ItemTypePoints}
 	activeTypes := allOther
 	if len(types) > 0 {
 		activeTypes = types
